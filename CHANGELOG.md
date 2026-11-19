@@ -6,6 +6,11 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-11-19
+
+The scanner image moves to 1.13, and the catalog mirror stops skipping
+releases. No input, default other than `scanner_version`, or job name changes.
+
 ### Added
 
 - `catalog-mirror/README.md` lists the partial versions a component accepts:
@@ -349,7 +354,8 @@ a tag — this content first reached consumers as part of 1.1.0.
   socket mount, unredacted Betterleaks output, and Trivy's secret scanner
   writing findings into an uploaded artifact.
 
-[Unreleased]: https://github.com/Tooark/template-security-scanner/compare/v1.3.1...HEAD
+[Unreleased]: https://github.com/Tooark/template-security-scanner/compare/v1.4.0...HEAD
+[1.4.0]: https://github.com/Tooark/template-security-scanner/compare/v1.3.1...v1.4.0
 [1.3.1]: https://github.com/Tooark/template-security-scanner/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/Tooark/template-security-scanner/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/Tooark/template-security-scanner/compare/v1.1.0...v1.2.0

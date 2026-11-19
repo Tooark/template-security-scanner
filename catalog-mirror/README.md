@@ -88,7 +88,7 @@ Once the first release lands, projects on the instance include it by path:
 
 ```yaml
 include:
-  - component: $CI_SERVER_FQDN/tooark/ci-security-scanner/full-scan@1.3.1
+  - component: $CI_SERVER_FQDN/tooark/ci-security-scanner/full-scan@1.4.0
     inputs:
       image: "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA"
       trivy_severity: "CRITICAL,HIGH"
