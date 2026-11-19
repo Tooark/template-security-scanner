@@ -574,8 +574,9 @@ as soon as it exists.
 The catalog only lists components hosted on the GitLab instance itself, so a
 GitHub repository cannot be published to it directly. Set up the mirror project
 described in [`catalog-mirror/`](https://github.com/Tooark/template-security-scanner/tree/main/catalog-mirror):
-it polls the releases here on a schedule, copies `templates/` across when the
-version moves, and publishes to the catalog of your instance.
+it polls the releases here on a schedule, copies `templates/` across for every
+release it has not published yet, and publishes each one to the catalog of
+your instance.
 
 ---
 

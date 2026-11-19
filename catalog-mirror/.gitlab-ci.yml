@@ -6,8 +6,8 @@
 # project holds a copy of templates/ and republishes it whenever upstream cuts
 # a release.
 #
-#   sync    weekly (schedule) - pulls the newest upstream release and, when the
-#           version changed, commits it and pushes a tag
+#   sync    weekly (schedule) - pulls every upstream release that has no tag
+#           here yet, oldest first, commits each one and pushes its tag
 #   release tag pipeline - publishes that tag to the catalog
 #
 # Setup is documented in README.md next to this file.
@@ -26,8 +26,10 @@ variables:
   GIT_DEPTH: "0"
 
 # -----------------------------------------------------------------------------
-# Pulls the newest upstream release and pushes it as a new tag when the version
-# moved. Re-running it when nothing changed is a no-op.
+# Pushes a tag for every upstream release that does not have one here yet.
+# Looking at the newest release alone would skip a patch released in the same
+# week as the next version, and never pick up a fix released later for an older
+# line, leaving @1.3 behind. Re-running it when nothing changed is a no-op.
 # -----------------------------------------------------------------------------
 sync:
   stage: sync
@@ -55,52 +57,89 @@ sync:
         auth_header="Authorization: Bearer ${UPSTREAM_TOKEN}"
       fi
 
-      echo "== querying the newest release of ${UPSTREAM_REPO} =="
-      if [ -n "$auth_header" ]; then
-        release_json="$(curl -fsSL -H "$auth_header" "${UPSTREAM_API}/repos/${UPSTREAM_REPO}/releases/latest")"
-      else
-        release_json="$(curl -fsSL "${UPSTREAM_API}/repos/${UPSTREAM_REPO}/releases/latest")"
-      fi
+      echo "== listing the releases of ${UPSTREAM_REPO} =="
+      : > /tmp/releases.json
+      page=1
+      while :; do
+        url="${UPSTREAM_API}/repos/${UPSTREAM_REPO}/releases?per_page=100&page=${page}"
+        if [ -n "$auth_header" ]; then
+          body="$(curl -fsSL -H "$auth_header" "$url")"
+        else
+          body="$(curl -fsSL "$url")"
+        fi
+        printf '%s\n' "$body" >> /tmp/releases.json
+        if [ "$(printf '%s' "$body" | jq 'length')" -lt 100 ]; then
+          break
+        fi
+        page=$((page + 1))
+      done
 
-      upstream_tag="$(printf '%s' "$release_json" | jq -r '.tag_name')"
-      if [ -z "$upstream_tag" ] || [ "$upstream_tag" = "null" ]; then
-        echo "could not read tag_name from the GitHub API response" >&2
+      # Published releases tagged vMAJOR.MINOR.PATCH, lowest version first,
+      # compared as numbers so that 1.10.0 sorts after 1.9.0. Drafts and
+      # prereleases are left out.
+      upstream_tags="$(jq -rs '
+        add
+        | map(select((.draft or .prerelease) | not) | .tag_name
+              | select(test("^v[0-9]+\\.[0-9]+\\.[0-9]+$")))
+        | sort_by(ltrimstr("v") | split(".") | map(tonumber))
+        | .[]' /tmp/releases.json)"
+      if [ -z "$upstream_tags" ]; then
+        echo "found no release of ${UPSTREAM_REPO} tagged vMAJOR.MINOR.PATCH" >&2
         exit 1
       fi
+      newest_tag="$(printf '%s\n' "$upstream_tags" | tail -n 1)"
 
       # The catalog wants a bare semantic version, GitHub tags carry a v prefix.
-      version="${upstream_tag#v}"
-      echo "upstream release: $upstream_tag -> catalog version $version"
+      #
+      # Listed in a step of its own: piped straight into cut, a failure of git
+      # would pass for a mirror without a single tag, and every release would
+      # look unpublished.
+      remote_tags="$(git ls-remote --tags --refs origin)"
+      published="$(printf '%s\n' "$remote_tags" | cut -f2)"
+      missing=""
+      for upstream_tag in $upstream_tags; do
+        if ! printf '%s\n' "$published" | grep -qxF "refs/tags/${upstream_tag#v}"; then
+          missing="$missing $upstream_tag"
+        fi
+      done
 
-      if git ls-remote --tags origin "refs/tags/${version}" | grep -q .; then
-        echo "== $version is already published; nothing to do =="
+      if [ -z "$missing" ]; then
+        echo "== every release up to $newest_tag is already published; nothing to do =="
         exit 0
       fi
-
-      echo "== downloading $upstream_tag =="
-      curl -fsSL "${UPSTREAM_DOWNLOAD}/${UPSTREAM_REPO}/archive/refs/tags/${upstream_tag}.tar.gz" -o /tmp/upstream.tgz
-      mkdir -p /tmp/upstream
-      tar -xzf /tmp/upstream.tgz -C /tmp/upstream --strip-components=1
-
-      for path in $SYNCED_PATHS; do
-        if [ ! -e "/tmp/upstream/$path" ]; then
-          echo "upstream release is missing $path" >&2
-          exit 1
-        fi
-        rm -rf "./$path"
-        cp -r "/tmp/upstream/$path" "./$path"
-        echo "  synced $path"
-      done
+      echo "== to publish:$missing =="
 
       git config user.name "${SYNC_COMMIT_NAME:-gitlab-catalog-sync}"
       git config user.email "${SYNC_COMMIT_EMAIL:-gitlab-catalog-sync@${CI_SERVER_HOST}}"
 
-      git add -A -- $SYNCED_PATHS
-      if git diff --cached --quiet; then
-        echo "== content is identical; tagging $version anyway =="
-      else
-        git commit -m "chore: sync upstream ${upstream_tag}"
-      fi
+      # One commit and one tag per release, stacked in version order. Nothing
+      # is pushed until all of them are built.
+      for upstream_tag in $missing; do
+        version="${upstream_tag#v}"
+        echo "== downloading $upstream_tag -> catalog version $version =="
+        rm -rf /tmp/upstream /tmp/upstream.tgz
+        curl -fsSL "${UPSTREAM_DOWNLOAD}/${UPSTREAM_REPO}/archive/refs/tags/${upstream_tag}.tar.gz" -o /tmp/upstream.tgz
+        mkdir -p /tmp/upstream
+        tar -xzf /tmp/upstream.tgz -C /tmp/upstream --strip-components=1
+
+        for path in $SYNCED_PATHS; do
+          if [ ! -e "/tmp/upstream/$path" ]; then
+            echo "upstream release is missing $path" >&2
+            exit 1
+          fi
+          rm -rf "./$path"
+          cp -r "/tmp/upstream/$path" "./$path"
+          echo "  synced $path"
+        done
+
+        git add -A -- $SYNCED_PATHS
+        if git diff --cached --quiet; then
+          echo "  content is identical; tagging $version anyway"
+        else
+          git commit -q -m "chore: sync upstream ${upstream_tag}"
+        fi
+        git tag -a "$version" -m "ci-security-scanner ${version} (upstream ${upstream_tag})"
+      done
 
       # The token reaches git through a credential helper instead of the remote
       # URL, so it never lands in argv (readable through /proc by anything else
@@ -120,16 +159,30 @@ sync:
       # out of the rewrite.
       remote="https://oauth2@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git"
 
+      # The default branch follows the newest release. A fix for an older line
+      # (1.3.2 once 1.4.0 is out) reaches the project through its tag alone,
+      # which carries its commit.
+      #
       # ci.skip: without it this push starts a branch pipeline whose own sync
-      # job races the tag push below, and fails trying to create the same tag
-      # when it wins. The tag push must not skip CI: its pipeline publishes.
-      push -o ci.skip "$remote" "HEAD:${CI_DEFAULT_BRANCH}"
+      # job races the tag pushes below, and fails trying to create the same tag
+      # when it wins. The tag pushes must not skip CI: their pipelines publish.
+      case " $missing " in
+        *" $newest_tag "*)
+          push -o ci.skip "$remote" "HEAD:${CI_DEFAULT_BRANCH}"
+          ;;
+        *)
+          echo "== $newest_tag was already published; ${CI_DEFAULT_BRANCH} stays on it =="
+          ;;
+      esac
 
-      # Pushing the tag starts the pipeline that runs the release job below.
-      git tag -a "$version" -m "ci-security-scanner ${version} (upstream ${upstream_tag})"
-      push "$remote" "refs/tags/${version}"
-
-      echo "== published tag $version; the release job takes it from here =="
+      # Each tag starts the pipeline that runs the release job below. One push
+      # per tag: GitLab creates pipelines for at most four refs of a single
+      # push, and drops the rest without a word.
+      for upstream_tag in $missing; do
+        version="${upstream_tag#v}"
+        push "$remote" "refs/tags/${version}"
+        echo "== published tag $version; the release job takes it from here =="
+      done
 
 # -----------------------------------------------------------------------------
 # Publishes the tag to the catalog. The `release` keyword is required; creating

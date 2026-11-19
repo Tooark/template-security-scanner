@@ -2661,12 +2661,16 @@ ark-tools "$@"</code></pre>
               <code>sync</code> consulta os releases de
               <code>UPSTREAM_REPO</code>
               (<code>Tooark/template-security-scanner</code>) em um
-              agendamento semanal; quando a versão muda, copia
+              agendamento semanal; para cada release que ainda não publicou, do
+              mais antigo ao mais novo, copia
               <code class="path">templates/</code>, <code>README.md</code>,
               <code>LICENSE</code> e <code>VERSION</code>, faz o commit e
               empurra uma tag sem o <code>v</code> — a versão nua que o catálogo
-              espera. Essa tag dispara o job <code>release</code>, que a publica
-              no catálogo.
+              espera. Cada tag dispara o job <code>release</code>, que a publica
+              no catálogo. Não há tags flutuantes no espelho: o catálogo resolve
+              sozinho <code>@{{COMPONENT_MINOR}}</code> e
+              <code>@{{COMPONENT_MAJOR}}</code> para a versão mais nova
+              publicada.
             </p>
 
             <p>
@@ -2701,12 +2705,16 @@ ark-tools "$@"</code></pre>
               <code>sync</code> job polls the releases of
               <code>UPSTREAM_REPO</code>
               (<code>Tooark/template-security-scanner</code>) on a weekly
-              schedule; when the version moves, it copies
+              schedule; for every release it has not published yet, oldest
+              first, it copies
               <code class="path">templates/</code>, <code>README.md</code>,
               <code>LICENSE</code> and <code>VERSION</code>, commits and pushes
               a tag without the <code>v</code> — the bare version the catalog
-              expects. That tag starts the <code>release</code> job, which
-              publishes it to the catalog.
+              expects. Each tag starts the <code>release</code> job, which
+              publishes it to the catalog. The mirror has no floating tags: the
+              catalog itself resolves <code>@{{COMPONENT_MINOR}}</code> and
+              <code>@{{COMPONENT_MAJOR}}</code> to the newest version
+              published.
             </p>
 
             <p>

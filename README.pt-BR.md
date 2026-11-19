@@ -581,8 +581,8 @@ O catálogo só lista componentes hospedados na própria instância do GitLab,
 então um repositório do GitHub não pode ser publicado nele diretamente.
 Configure o projeto-espelho descrito em
 [`catalog-mirror/`](https://github.com/Tooark/template-security-scanner/tree/main/catalog-mirror):
-ele consulta os releases daqui num agendamento, copia o `templates/` quando a
-versão muda e publica no catálogo da sua instância.
+ele consulta os releases daqui num agendamento, copia o `templates/` de cada
+release que ainda não publicou e publica cada um no catálogo da sua instância.
 
 ---
 

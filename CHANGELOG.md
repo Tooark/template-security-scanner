@@ -6,6 +6,26 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- `catalog-mirror/README.md` lists the partial versions a component accepts:
+  `@1.0` and `@1` resolve to the newest 1.0.x and 1.x.x published in the
+  catalog, the way `v1.0` and `v1` do on GitHub. The mirror needs no floating
+  tags for them.
+
+### Fixed
+
+- The `sync` job of the catalog mirror no longer skips releases. It read only
+  the newest upstream release, so a patch released in the same week as the
+  next version never reached the catalog and `@1.3` stopped short of the last
+  1.3 patch; a fix released later for an older line was never published
+  either. It now publishes every upstream release that has no tag in the
+  mirror yet, oldest first, and moves the default branch only to the newest
+  one. A mirror picks this up once its `.gitlab-ci.yml` is replaced with the
+  one in `catalog-mirror/`; its next run backfills the releases it missed, one
+  release pipeline per version, and a new mirror publishes the whole release
+  history on its first sync.
+
 ## [1.3.1] - 2026-10-06
 
 The repository is renamed `Tooark/template-security-scanner`. Nothing a
