@@ -13,6 +13,20 @@ All notable changes to this project are documented here. The format follows
   catalog, the way `v1.0` and `v1` do on GitHub. The mirror needs no floating
   tags for them.
 
+### Changed
+
+- Scanner image bumped to `ghcr.io/tooark/security-scanner:1.13`, the new
+  default of `scanner_version`. It carries newer tools and nothing else: Trivy
+  0.74.0 → 0.76.2 and Betterleaks 1.8.1 → 1.10.1, with Hadolint still at
+  2.15.1. The `ark-tools` commands, the variables the image reads and the
+  `ark-report-tools` envelope v1.3 are the ones of 1.10, so no input changes
+  and a collector behind `report_url` needs no update. Newer scanners know
+  more rules: a pipeline that passed can start failing a gate on a finding
+  the older tools did not report. A project that needs time pins
+  `scanner_version: "1.10"`. Released as a minor because the image moved a
+  minor: the scanner default follows the image's own versioning (see
+  `CONTRIBUTING.md`).
+
 ### Fixed
 
 - The `sync` job of the catalog mirror no longer skips releases. It read only

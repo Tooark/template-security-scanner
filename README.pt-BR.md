@@ -207,7 +207,7 @@ Em todos os templates.
 | `reports_dir`         | `scan-reports`                    | Onde os relatórios são gravados, relativo ao diretório do projeto  |
 | `artifacts_expire_in` | `7 days`                          | Por quanto tempo os artifacts dos relatórios são mantidos          |
 | `scanner_image`       | `ghcr.io/tooark/security-scanner` | Troque para baixar de um mirror                                    |
-| `scanner_version`     | `1.10`                            | Tag da imagem. Pine; `latest` torna os pipelines não reproduzíveis |
+| `scanner_version`     | `1.13`                            | Tag da imagem. Pine; `latest` torna os pipelines não reproduzíveis |
 | `extra_args`          | —                                 | Flags extras repassadas à ferramenta depois do `--`                |
 
 ### O que escanear

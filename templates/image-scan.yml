@@ -24,7 +24,7 @@ spec:
       default: "ghcr.io/tooark/security-scanner"
       description: "Scanner image repository."
     scanner_version:
-      default: "1.10"
+      default: "1.13"
       description: "Scanner image tag. Pin it; latest makes pipelines non-reproducible."
     allow_failure:
       type: boolean

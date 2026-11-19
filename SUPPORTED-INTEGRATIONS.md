@@ -93,8 +93,8 @@ with a shallow clone it sees almost nothing **and does not complain**.
 
 | Component version   | Scanner image                          | Status     |
 | ------------------- | -------------------------------------- | ---------- |
-| `1.3.x`             | `ghcr.io/tooark/security-scanner:1.10` | Current    |
-| `1.2.x`             | `ghcr.io/tooark/security-scanner:1.10` | Superseded |
+| `1.4.x`             | `ghcr.io/tooark/security-scanner:1.13` | Current    |
+| `1.2.x` and `1.3.x` | `ghcr.io/tooark/security-scanner:1.10` | Superseded |
 | `1.0.x` and `1.1.x` | `ghcr.io/tooark/security-scanner:1.9`  | Superseded |
 
 [`VERSION`](VERSION) is the single source of truth for this pairing, and
