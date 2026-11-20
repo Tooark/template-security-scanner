@@ -5,20 +5,28 @@ itself, so a GitHub repository cannot be published to the catalog directly.
 This directory holds the pipeline for a small mirror project that closes that
 gap: it watches releases of
 [`Tooark/template-security-scanner`](https://github.com/Tooark/template-security-scanner),
-copies `templates/` across when the version moves, and publishes the new
-version to the internal catalog.
+copies `templates/` across for every release it has not published yet, and
+publishes each one to the internal catalog.
 
 GitHub stays the source of truth. Nothing is authored here.
 
 ## What the pipeline does
 
-| Job       | Trigger                              | What it does                                                                                                       |
-| --------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------ |
-| `sync`    | weekly schedule, manual run, or push | Reads the newest upstream release; if that version has no tag yet, commits the new `templates/` and pushes the tag |
-| `release` | the tag pushed by `sync`             | Publishes that tag to the CI/CD Catalog                                                                            |
+| Job       | Trigger                              | What it does                                                                                                                    |
+| --------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
+| `sync`    | weekly schedule, manual run, or push | Lists the upstream releases and, oldest first, commits the `templates/` of each one that has no tag here yet and pushes its tag |
+| `release` | each tag pushed by `sync`            | Publishes that tag to the CI/CD Catalog                                                                                         |
 
 Re-running `sync` when nothing changed is a no-op, so the schedule can be as
 aggressive as you like.
+
+`sync` publishes every release it is missing, not only the newest one. A patch
+released in the same week as the next version still reaches the catalog, and
+so does a fix released later for an older line — otherwise `@1.3` would stop
+at whichever patch the schedule happened to catch. The default branch follows
+the newest release; an older line is published by its tag alone. A new mirror
+therefore publishes the whole release history on its first sync, one release
+pipeline per version.
 
 The `release` job runs `glab`, which the `release` keyword uses on GitLab 18.0
 and later. On an older instance, switch its image to
@@ -80,7 +88,7 @@ Once the first release lands, projects on the instance include it by path:
 
 ```yaml
 include:
-  - component: $CI_SERVER_FQDN/tooark/ci-security-scanner/full-scan@1.3.1
+  - component: $CI_SERVER_FQDN/tooark/ci-security-scanner/full-scan@1.4.0
     inputs:
       image: "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA"
       trivy_severity: "CRITICAL,HIGH"
@@ -88,6 +96,21 @@ include:
 
 `$CI_SERVER_FQDN` resolves to the instance host, so the same snippet works in
 every project without hardcoding the domain.
+
+The version after `@` can also be partial. GitLab resolves it when the pipeline
+is created, to the newest version matching it among those published in the
+catalog:
+
+| Reference  | Resolves to                     | Use when                           |
+| ---------- | ------------------------------- | ---------------------------------- |
+| `@1.0.0`   | Exactly that version            | Reproducible pipelines             |
+| `@1.0`     | Newest 1.0.x in the catalog     | Automatic patch updates            |
+| `@1`       | Newest 1.x.x in the catalog     | Automatic minor and patch updates  |
+| `@~latest` | Newest version, a new major too | Never in a pipeline you care about |
+
+These are not tags: the mirror pushes only the full version, and needs no
+floating `1` or `1.0` tag to follow the upstream `v1` and `v1.0`. A new patch
+reaches `@1.0` and `@1` as soon as its release job publishes it.
 
 ## Moving an existing mirror to this repository
 
@@ -110,7 +133,8 @@ variables:
 or leave the file alone and add `UPSTREAM_REPO` with that value under
 _Settings > CI/CD > Variables_ — a project variable wins over the one in the
 file. Nothing else changes: the versions already published stay as they are,
-and the next `sync` picks up from the newest release here.
+and the next `sync` publishes every release of this repository that the mirror
+has no tag for yet.
 
 ## Version mapping
 
@@ -127,4 +151,5 @@ becomes catalog version `1.2.3`.
 | `You are not allowed to push code to protected branches`         | The token's user lacks push rights on the default branch, or _Protected tags_ do not let it create tags                                                                                                                                                                                                                  |
 | The release job succeeds but the catalog stays empty             | The **CI/CD Catalog project** toggle was off when the job ran. Turn it on, delete the release (_Deploy > Releases_) and retry the `release` job; it runs `glab` with `--no-update`, so it fails while the release exists                                                                                                 |
 | The release job fails with `Project must have a description`     | Set the description under _Settings > General_ and retry the job. `Project must have a README` and `Project must contain components` mean the tagged commit lacks `README.md` or `templates/`                                                                                                                            |
+| `found no release of ... tagged vMAJOR.MINOR.PATCH`              | `UPSTREAM_REPO` names a repository without a published release tagged `vX.Y.Z`; drafts and prereleases do not count                                                                                                                                                                                                      |
 | `API rate limit exceeded`                                        | Set `UPSTREAM_TOKEN` to a GitHub token                                                                                                                                                                                                                                                                                   |
