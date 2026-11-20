@@ -90,13 +90,13 @@ jobs:
       # end of the same scanner: the sister Action, which runs the same image
       # and the same ark-tools commands as the templates here.
       - name: Scan this repository for secrets
-        uses: Tooark/action-security-scanner@v1.2.0
+        uses: Tooark/action-security-scanner@v1.3.0
         with:
           command: secret-scan
           artifact-name: self-scan-reports
 
       - name: Scan this repository for vulnerable dependencies
-        uses: Tooark/action-security-scanner@v1.2.0
+        uses: Tooark/action-security-scanner@v1.3.0
         with:
           command: filesystem-scan
           trivy-severity: CRITICAL,HIGH
