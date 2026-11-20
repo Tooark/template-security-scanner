@@ -15,8 +15,8 @@ filled in; the `bug` template asks for exactly the fields this page indexes.
 
 | Platform                               | How it is consumed                                                                                                    | Status            |
 | -------------------------------------- | --------------------------------------------------------------------------------------------------------------------- | ----------------- |
-| **GitLab CI — remote include**         | `include: - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.3.1/templates/<scan>.yml"` | ✅ Supported      |
-| **GitLab CI — CI/CD Catalog**          | `include: - component: $CI_SERVER_FQDN/tooark/ci-security-scanner/<scan>@1.3.1`                                       | ✅ Supported      |
+| **GitLab CI — remote include**         | `include: - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.4.0/templates/<scan>.yml"` | ✅ Supported      |
+| **GitLab CI — CI/CD Catalog**          | `include: - component: $CI_SERVER_FQDN/tooark/ci-security-scanner/<scan>@1.4.0`                                       | ✅ Supported      |
 | **GitLab CI — local copy**             | The files of `templates/` vendored into a project, `include: - local:`                                                | ⚠️ Best effort    |
 | **GitHub Actions**                     | [`Tooark/action-security-scanner`](https://github.com/Tooark/action-security-scanner)                                 | ➡️ Sister project |
 | Jenkins, Azure DevOps, CircleCI, Drone | —                                                                                                                     | ❌ Not covered    |
@@ -93,8 +93,8 @@ with a shallow clone it sees almost nothing **and does not complain**.
 
 | Component version   | Scanner image                          | Status     |
 | ------------------- | -------------------------------------- | ---------- |
-| `1.3.x`             | `ghcr.io/tooark/security-scanner:1.10` | Current    |
-| `1.2.x`             | `ghcr.io/tooark/security-scanner:1.10` | Superseded |
+| `1.4.x`             | `ghcr.io/tooark/security-scanner:1.13` | Current    |
+| `1.2.x` and `1.3.x` | `ghcr.io/tooark/security-scanner:1.10` | Superseded |
 | `1.0.x` and `1.1.x` | `ghcr.io/tooark/security-scanner:1.9`  | Superseded |
 
 [`VERSION`](VERSION) is the single source of truth for this pairing, and

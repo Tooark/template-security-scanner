@@ -6,6 +6,45 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-11-19
+
+The scanner image moves to 1.13, and the catalog mirror stops skipping
+releases. No input, default other than `scanner_version`, or job name changes.
+
+### Added
+
+- `catalog-mirror/README.md` lists the partial versions a component accepts:
+  `@1.0` and `@1` resolve to the newest 1.0.x and 1.x.x published in the
+  catalog, the way `v1.0` and `v1` do on GitHub. The mirror needs no floating
+  tags for them.
+
+### Changed
+
+- Scanner image bumped to `ghcr.io/tooark/security-scanner:1.13`, the new
+  default of `scanner_version`. It carries newer tools and nothing else: Trivy
+  0.74.0 → 0.76.2 and Betterleaks 1.8.1 → 1.10.1, with Hadolint still at
+  2.15.1. The `ark-tools` commands, the variables the image reads and the
+  `ark-report-tools` envelope v1.3 are the ones of 1.10, so no input changes
+  and a collector behind `report_url` needs no update. Newer scanners know
+  more rules: a pipeline that passed can start failing a gate on a finding
+  the older tools did not report. A project that needs time pins
+  `scanner_version: "1.10"`. Released as a minor because the image moved a
+  minor: the scanner default follows the image's own versioning (see
+  `CONTRIBUTING.md`).
+
+### Fixed
+
+- The `sync` job of the catalog mirror no longer skips releases. It read only
+  the newest upstream release, so a patch released in the same week as the
+  next version never reached the catalog and `@1.3` stopped short of the last
+  1.3 patch; a fix released later for an older line was never published
+  either. It now publishes every upstream release that has no tag in the
+  mirror yet, oldest first, and moves the default branch only to the newest
+  one. A mirror picks this up once its `.gitlab-ci.yml` is replaced with the
+  one in `catalog-mirror/`; its next run backfills the releases it missed, one
+  release pipeline per version, and a new mirror publishes the whole release
+  history on its first sync.
+
 ## [1.3.1] - 2026-10-06
 
 The repository is renamed `Tooark/template-security-scanner`. Nothing a
@@ -315,7 +354,8 @@ a tag — this content first reached consumers as part of 1.1.0.
   socket mount, unredacted Betterleaks output, and Trivy's secret scanner
   writing findings into an uploaded artifact.
 
-[Unreleased]: https://github.com/Tooark/template-security-scanner/compare/v1.3.1...HEAD
+[Unreleased]: https://github.com/Tooark/template-security-scanner/compare/v1.4.0...HEAD
+[1.4.0]: https://github.com/Tooark/template-security-scanner/compare/v1.3.1...v1.4.0
 [1.3.1]: https://github.com/Tooark/template-security-scanner/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/Tooark/template-security-scanner/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/Tooark/template-security-scanner/compare/v1.1.0...v1.2.0
