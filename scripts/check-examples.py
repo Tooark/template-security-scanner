@@ -9,7 +9,13 @@ blocks of the Markdown documentation, is checked here first:
 
   * the template it names exists;
   * its ``inputs:`` would be accepted: declared, of the right type, within
-    ``options`` and matching ``regex``, with nothing required left out.
+    ``options`` and matching ``regex``, with nothing required left out;
+  * it passes no deprecated input. GitLab still accepts one, but an example
+    that shows it teaches the name that is going away.
+
+``examples/all-inputs.gitlab-ci.yml`` is held to one more rule, the one its
+name promises: between its includes it passes every input the templates
+declare, the deprecated ones aside.
 
 Usage: python3 scripts/check-examples.py
 """
@@ -24,6 +30,8 @@ import component
 from component import REPO_ROOT, yaml
 
 MARKDOWN = ("README.md", "README.pt-BR.md", "catalog-mirror/README.md")
+# The example that documents every input; a new input has to land there too.
+REFERENCE = "examples/all-inputs.gitlab-ci.yml"
 YAML_BLOCK = re.compile(r"^ *```ya?ml\n(.*?)^ *```", re.MULTILINE | re.DOTALL)
 
 # The three ways a pipeline reaches a template, each ending in its name:
@@ -54,10 +62,11 @@ def includes(document) -> list[dict]:
   return [entry for entry in entries if isinstance(entry, dict)]
 
 
-def check_document(text: str, components: dict) -> tuple[int, list[str]]:
-  """Returns (number of template includes found, problems) for one document."""
+def check_document(text: str, components: dict) -> tuple[int, list[str], set[str]]:
+  """Returns (template includes found, problems, inputs passed) for one document."""
   count = 0
   problems: list[str] = []
+  passed: set[str] = set()
   for entry in includes(yaml.safe_load(text)):
     name = included_template(entry)
     if name is None:
@@ -66,8 +75,25 @@ def check_document(text: str, components: dict) -> tuple[int, list[str]]:
     if name not in components:
       problems.append(f"includes '{name}', which is not a template in templates/")
       continue
-    problems.extend(component.check_inputs(components[name], entry.get("inputs") or {}))
-  return count, problems
+    provided = entry.get("inputs") or {}
+    problems.extend(component.check_inputs(components[name], provided))
+    for key in provided:
+      definition = components[name].inputs.get(key)
+      if definition is not None and component.is_deprecated(definition):
+        problems.append(f"passes '{key}', which {name} only keeps for old pipelines: {definition['description']}")
+    passed.update(provided)
+  return count, problems, passed
+
+
+def missing_from_reference(passed: set[str], components: dict) -> list[str]:
+  """Lists the inputs the reference example should show and does not."""
+  current = {
+      name
+      for item in components.values()
+      for name, definition in item.inputs.items()
+      if not component.is_deprecated(definition)
+  }
+  return sorted(current - passed)
 
 
 def main() -> int:
@@ -85,12 +111,18 @@ def main() -> int:
 
   failed = False
   total = 0
+  reference_seen = False
   for label, text, required in documents:
     try:
-      count, problems = check_document(text, components)
+      count, problems, passed = check_document(text, components)
     except yaml.YAMLError as exc:
-      count, problems = 0, [f"does not parse as YAML: {exc}"]
+      count, problems, passed = 0, [f"does not parse as YAML: {exc}"], set()
     total += count
+
+    if label == REFERENCE:
+      reference_seen = True
+      for name in missing_from_reference(passed, components):
+        problems.append(f"never passes '{name}'; this example is the one that shows every input")
 
     if count == 0 and not problems:
       # A Markdown block with no include is a job override or a fragment.
@@ -105,6 +137,10 @@ def main() -> int:
         print(f"       {problem}")
     else:
       print(f"  ok   {label}")
+
+  if not reference_seen:
+    failed = True
+    print(f"  FAIL {REFERENCE} is missing; it is the example that shows every input")
 
   if failed:
     print("\nexample validation failed", file=sys.stderr)

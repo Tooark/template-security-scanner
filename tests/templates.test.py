@@ -50,6 +50,8 @@ PROJECT_DIR = "$CI_PROJECT_DIR"
 # Each case: the template, the inputs of the include, the CI/CD variables the
 # project sets, and what the job must have done. `env` maps a variable to the
 # value ark-tools must see, or to None when it must not be set at all.
+# `log_includes` and `log_excludes` are text the job log must and must not
+# carry.
 CASES = [
     # --- full-scan -------------------------------------------------------------
     dict(
@@ -128,6 +130,39 @@ CASES = [
         inputs={"extra_args": "--skip-dirs * --debug"},
         argv=["full-scan", "--", "--skip-dirs", "*", "--debug"],
     ),
+    # --- full-scan: path, and scan_path as its deprecated name -----------------
+    dict(
+        name="full-scan scans the path it is given",
+        template="full-scan",
+        inputs={"path": "services/api"},
+        argv=["full-scan"],
+        env={"FULL_SCAN_PATH": "services/api"},
+        log_excludes="scan_path",
+    ),
+    dict(
+        name="scan_path still names the path, and the job log says it is deprecated",
+        template="full-scan",
+        inputs={"scan_path": "services/api"},
+        argv=["full-scan"],
+        env={"FULL_SCAN_PATH": "services/api"},
+        log_includes="scan_path input is deprecated and will be removed in 2.0.0",
+    ),
+    dict(
+        name="path wins over the deprecated scan_path",
+        template="full-scan",
+        inputs={"path": "services/api", "scan_path": "legacy"},
+        argv=["full-scan"],
+        env={"FULL_SCAN_PATH": "services/api"},
+        log_includes="ignored here because path is set too",
+    ),
+    dict(
+        name="the default path still wins over a FULL_SCAN_PATH variable",
+        template="full-scan",
+        variables={"FULL_SCAN_PATH": "elsewhere"},
+        argv=["full-scan"],
+        env={"FULL_SCAN_PATH": PROJECT_DIR},
+        log_excludes="scan_path",
+    ),
     # --- image-scan ------------------------------------------------------------
     dict(
         name="image-scan puts --sbom before the image",
@@ -154,6 +189,46 @@ CASES = [
         template="filesystem-scan",
         inputs={"path": "services/api", "sbom": True},
         argv=["filesystem-scan", "--sbom", "services/api"],
+    ),
+    # --- the SBOM upload -------------------------------------------------------
+    dict(
+        name="report_sbom_url sends the SBOM elsewhere, with a token of its own",
+        template="image-scan",
+        inputs={
+            "image": "app:1",
+            "sbom": True,
+            "report_url": "https://hub.example.com/api/reports",
+            "report_sbom_url": "https://hub.example.com/api/sboms",
+        },
+        variables={"REPORT_SBOM_TOKEN": "sb0m-s3cr3t"},
+        argv=["image-scan", "--sbom", "app:1"],
+        env={
+            "REPORT_URL": "https://hub.example.com/api/reports",
+            "REPORT_SBOM_URL": "https://hub.example.com/api/sboms",
+            "REPORT_SBOM_TOKEN": "sb0m-s3cr3t",
+            "REPORT_FAIL_ON_ERROR": None,
+            "REPORT_SBOM_FAIL_ON_ERROR": None,
+        },
+        log_excludes="sb0m-s3cr3t",
+    ),
+    dict(
+        name="a blank report_sbom_url keeps the REPORT_SBOM_URL of the project",
+        template="full-scan",
+        inputs={"sbom": True},
+        variables={"REPORT_SBOM_URL": "https://hub.example.com/api/sboms"},
+        argv=["full-scan", "--sbom"],
+        env={
+            "REPORT_SBOM_URL": "https://hub.example.com/api/sboms",
+            "REPORT_SBOM_FAIL_ON_ERROR": None,
+        },
+    ),
+    dict(
+        name="report_sbom_url wins over a REPORT_SBOM_URL variable",
+        template="filesystem-scan",
+        inputs={"sbom": True, "report_sbom_url": "https://hub.example.com/api/sboms"},
+        variables={"REPORT_SBOM_URL": "https://old.example.com/sboms"},
+        argv=["filesystem-scan", "--sbom", PROJECT_DIR],
+        env={"REPORT_SBOM_URL": "https://hub.example.com/api/sboms"},
     ),
     dict(
         name="config-scan",
@@ -284,6 +359,10 @@ def run_case(case: dict, components: dict, bash: str, stub_dir: Path, workdir: P
   secret = case.get("log_excludes")
   if secret and secret in result.stdout + result.stderr:
     problems.append("the job log printed the log_excludes value")
+
+  notice = case.get("log_includes")
+  if notice and notice not in result.stdout + result.stderr:
+    problems.append(f"the job log never said {notice!r}\n{result.stdout}{result.stderr}")
 
   return problems
 

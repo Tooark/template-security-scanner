@@ -91,7 +91,7 @@ python3 scripts/validate-templates.py   # structure, input wiring, dead inputs
 ./scripts/check-sync.sh                 # version pins, ARK_IN_* wiring, docs
 python3 scripts/check-examples.py       # examples and README snippets match the templates
 python3 tests/templates.test.py         # the job each template generates, without GitLab
-shellcheck -s bash scripts/*.sh
+shellcheck -s bash scripts/*.sh tests/*.sh
 ```
 
 Run all five before opening a PR. CI runs them, lints the script blocks of the
@@ -168,9 +168,9 @@ the scanner image tag that every template pins, and the report envelope that
 image writes:
 
 ```text
-COMPONENT_VERSION=1.4.0
+COMPONENT_VERSION=1.5.0
 SCANNER_IMAGE=ghcr.io/tooark/security-scanner
-SCANNER_VERSION=1.13
+SCANNER_VERSION=1.14
 REPORT_SCHEMA=ark-report-tools
 REPORT_VERSION=1.3
 ```
@@ -251,16 +251,59 @@ chore(version): bump the scanner image to 1.10
 
 ## Releasing
 
-Releases are cut from tags:
+A release is `COMPONENT_VERSION` reaching `main`. Nobody pushes a tag:
 
 1. Update `COMPONENT_VERSION` in `VERSION`.
-2. Move the `[Unreleased]` entries in `CHANGELOG.md` under the new version.
-3. Tag `vMAJOR.MINOR.PATCH` and push it.
+2. Move the `[Unreleased]` entries in `CHANGELOG.md` under the new version,
+   dated the day the pull request is to be merged, and add its link
+   definition at the end of the file.
+3. Merge the pull request. **That merge is the release.**
 
-[`.github/workflows/release.yml`](.github/workflows/release.yml) runs the
-checks, **refuses a tag that disagrees with `COMPONENT_VERSION`**, creates the
-release with generated notes, and force-moves the floating `vMAJOR` and
-`vMAJOR.MINOR` tags.
+On every push to `main` that touches `VERSION`,
+[`.github/workflows/release.yml`](.github/workflows/release.yml) runs
+[`scripts/release.sh`](scripts/release.sh), which looks for the tag
+`v<COMPONENT_VERSION>` and for its release:
+
+| It finds                           | It does                                                                           |
+| ---------------------------------- | --------------------------------------------------------------------------------- |
+| The tag and the release            | Nothing. A push that only moves `SCANNER_VERSION` ends here                       |
+| Neither                            | Runs the checks, tags that commit and creates the release                         |
+| The tag on that commit, no release | Creates the release on the tag: this is how a run that failed halfway is finished |
+| The tag on another commit          | Fails. A version tag is never moved; publish it by hand or name a new version     |
+
+The release notes open with the `## [X.Y.Z]` section of `CHANGELOG.md`,
+followed by the list of merged pull requests GitHub generates, so a version
+without that section is refused (and `check-sync.sh` fails the pull request
+first). The floating `vMAJOR` and `vMAJOR.MINOR` tags are then force-moved,
+each only when the release is the newest of its line: a `1.4.1` cut after
+`1.5.0` moves `v1.4` and leaves `v1` alone.
+
+`bash scripts/release.sh plan` only reads, so it is safe to run from a clone
+to see what a merge would do. `tests/release.test.sh` plays every row of the
+table out against a throwaway repository and a stand-in `gh`; run it when you
+touch the script.
+
+Two things the repository settings must allow, because the workflow acts as
+`github-actions[bot]`:
+
+- **Creating `v*.*.*` tags.** A tag ruleset that restricts creation to a role
+  the bot does not have makes the release fail with a repository rule
+  violation. Keep the rules that forbid updating and deleting a version tag,
+  which is what makes a tag immutable, and let creation through.
+- **Force-moving `vMAJOR` and `vMAJOR.MINOR`.** A ruleset over `v*` may forbid
+  deleting them, not updating them.
+
+When a release run fails, how to finish it depends on how far it got:
+
+- **Before the tag exists** (a check failed, the changelog section is
+  missing): fix it through a pull request. If that fix does not touch
+  `VERSION`, its merge starts no release; start one from the Actions tab with
+  **Run workflow** on `main`.
+- **After the tag exists** (the release or the floating tags failed): re-run
+  the failed run with **Re-run jobs**. A re-run keeps the commit the run
+  started on, which is the one the tag points at, and the script picks up
+  where it stopped. **Run workflow** would run on the current head of `main`
+  instead, and a tag on another commit is refused.
 
 A remote include can use the new tag immediately. The GitLab CI/CD Catalog only
 lists components hosted on the GitLab instance itself, so each instance picks

@@ -1,0 +1,99 @@
+# =============================================================================
+# The report to one destination, the SBOM to another.
+# -----------------------------------------------------------------------------
+# Findings usually belong to a security hub, and the SBOM to an inventory of
+# what each image is made of. One scan feeds both:
+#
+#   report_url        <- full-scan-report.json, the ark-report-tools envelope
+#   report_sbom_url   <- trivy-image.sbom.json, the SBOM exactly as Trivy
+#                        wrote it (CycloneDX or SPDX), not wrapped in anything
+#
+# Credentials follow the destination, and that is the part to get right. Both
+# tokens are masked CI/CD variables (Settings > CI/CD > Variables), never
+# inputs and never in this file:
+#
+#   - with `report_sbom_url`, the SBOM request carries REPORT_SBOM_TOKEN and
+#     REPORT_SBOM_HEADERS and nothing else. REPORT_TOKEN is never sent there,
+#     not even when both endpoints accept the same token: repeat it in
+#     REPORT_SBOM_TOKEN, or the request goes out with no Authorization;
+#   - without `report_sbom_url`, the SBOM is POSTed to `report_url` as a second
+#     request, with the report's own token and headers.
+#
+# Each request names its body in a header, `X-Ark-Payload: report` or
+# `X-Ark-Payload: sbom`, so one endpoint can take both.
+#
+# full-scan inventories the image. Without the `image` input it has none to
+# inventory, so the SBOM is of the source tree instead
+# (trivy-filesystem.sbom.json, or trivy-repo.sbom.json with scan_mode: repo).
+# =============================================================================
+stages:
+  - build
+  - security
+
+build:
+  stage: build
+  image: docker:27
+  services:
+    - docker:27-dind
+  script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
+    - docker build -t "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA" .
+    - docker push "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA"
+
+include:
+  # ---------------------------------------------------------------------------
+  # The image this pipeline just built: one report, one SBOM.
+  # ---------------------------------------------------------------------------
+  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.0/templates/full-scan.yml"
+    inputs:
+      stage: security
+      image: "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA"
+      # A boolean input: a bare true, not "true".
+      sbom: true
+      # cyclonedx (the image default) or spdx-json.
+      sbom_format: "cyclonedx"
+      report_url: "https://security-hub.example.com/api/reports"
+      report_sbom_url: "https://sbom-inventory.example.com/api/sboms"
+      # Applies to the SBOM upload too, unless REPORT_SBOM_FAIL_ON_ERROR says
+      # otherwise. It is also what turns a forgotten REPORT_SBOM_TOKEN into a
+      # failed job instead of a lost SBOM.
+      report_fail_on_error: "true"
+
+  # ---------------------------------------------------------------------------
+  # The same split for an image that already lives in a registry: image-scan
+  # sends its report and its SBOM just as full-scan does.
+  # ---------------------------------------------------------------------------
+  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.0/templates/image-scan.yml"
+    inputs:
+      job_name: "security:published-image"
+      stage: security
+      image: "$CI_REGISTRY_IMAGE:latest"
+      sbom: true
+      report_url: "https://security-hub.example.com/api/reports"
+      report_sbom_url: "https://sbom-inventory.example.com/api/sboms"
+      rules:
+        - if: $CI_PIPELINE_SOURCE == "schedule"
+
+# -----------------------------------------------------------------------------
+# Both images sit in this project's registry, which is private unless the
+# project is public. Trivy reads the two variables natively, and the job token
+# behind CI_REGISTRY_PASSWORD is allowed to pull.
+# -----------------------------------------------------------------------------
+"security:full-scan":
+  needs: ["build"]
+  variables:
+    TRIVY_USERNAME: "$CI_REGISTRY_USER"
+    TRIVY_PASSWORD: "$CI_REGISTRY_PASSWORD"
+
+"security:published-image":
+  variables:
+    TRIVY_USERNAME: "$CI_REGISTRY_USER"
+    TRIVY_PASSWORD: "$CI_REGISTRY_PASSWORD"
+
+# -----------------------------------------------------------------------------
+# What has no input travels as a CI/CD variable. These two are not secrets, so
+# they can live here; each defaults to what the report uses.
+# -----------------------------------------------------------------------------
+# variables:
+#   REPORT_SBOM_METHOD: "PUT"
+#   REPORT_SBOM_FAIL_ON_ERROR: "false"
