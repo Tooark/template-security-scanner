@@ -11,7 +11,7 @@ Example: "Closes #42 — add trivy_ignorefile to the three Trivy templates."
 - [ ] `catalog-mirror/` — the CI/CD Catalog mirror pipeline
 - [ ] `scripts/` and `tests/` — validation run in CI and locally
 - [ ] `.github/workflows/` — this repository's own CI
-- [ ] `VERSION` — scanner image or component version
+- [ ] `VERSION` — scanner image or component version (merging a new `COMPONENT_VERSION` publishes the release)
 - [ ] `docs/` — onboarding guide
 - [ ] `examples/` — copy-ready pipelines
 - [ ] Governance / documentation only
@@ -46,7 +46,7 @@ CHANGELOG.md.
 - [ ] `./scripts/check-sync.sh` passes
 - [ ] `python3 scripts/check-examples.py` passes
 - [ ] `python3 tests/templates.test.py` passes, with a case for any new behaviour
-- [ ] `shellcheck -s bash scripts/*.sh` passes
+- [ ] `shellcheck -s bash scripts/*.sh tests/*.sh` passes
 - [ ] Version pins were changed only through `VERSION`
 - [ ] `README.md` and `README.pt-BR.md` updated **and in sync** (if docs changed)
 - [ ] `CHANGELOG.md` updated under `[Unreleased]`

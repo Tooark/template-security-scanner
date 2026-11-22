@@ -22,7 +22,7 @@ spec:
       default: "ghcr.io/tooark/security-scanner"
       description: "Scanner image repository."
     scanner_version:
-      default: "1.13"
+      default: "1.14"
       description: "Scanner image tag. Pin it; latest makes pipelines non-reproducible."
     allow_failure:
       type: boolean
@@ -105,6 +105,9 @@ spec:
       default: ""
       options: ["", "true", "false"]
       description: "Fail the job when the webhook upload fails."
+    report_sbom_url:
+      default: ""
+      description: "Comma-separated URLs for the SBOM alone; empty sends it to report_url. Set REPORT_SBOM_TOKEN as a masked CI/CD variable: REPORT_TOKEN is not reused."
     # --- escape hatch ---------------------------------------------------------
     extra_args:
       default: ""
@@ -156,6 +159,7 @@ spec:
     ARK_IN_TRIVY_IGNOREFILE: "$[[ inputs.trivy_ignorefile ]]"
     ARK_IN_REPORT_URL: "$[[ inputs.report_url ]]"
     ARK_IN_REPORT_FAIL_ON_ERROR: "$[[ inputs.report_fail_on_error ]]"
+    ARK_IN_REPORT_SBOM_URL: "$[[ inputs.report_sbom_url ]]"
   before_script:
     - |
       echo "[ci-security-scanner] filesystem-scan"
@@ -172,7 +176,7 @@ spec:
         SBOM_FORMAT \
         TRIVY_SEVERITY TRIVY_SEVERITY_FAIL TRIVY_IGNORE_UNFIXED TRIVY_IGNORE_UNFIXED_FAIL \
         TRIVY_EXIT_CODE TRIVY_FORMAT TRIVY_SCANNERS TRIVY_TIMEOUT TRIVY_SERVER TRIVY_IGNOREFILE \
-        REPORT_URL REPORT_FAIL_ON_ERROR
+        REPORT_URL REPORT_FAIL_ON_ERROR REPORT_SBOM_URL
       mkdir -p "$REPORT_DIR" "$TRIVY_CACHE_DIR"
   script:
     - |

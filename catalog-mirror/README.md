@@ -12,13 +12,29 @@ GitHub stays the source of truth. Nothing is authored here.
 
 ## What the pipeline does
 
-| Job       | Trigger                              | What it does                                                                                                                    |
-| --------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
-| `sync`    | weekly schedule, manual run, or push | Lists the upstream releases and, oldest first, commits the `templates/` of each one that has no tag here yet and pushes its tag |
-| `release` | each tag pushed by `sync`            | Publishes that tag to the CI/CD Catalog                                                                                         |
+Two kinds of pipeline run in the mirror, one job each:
+
+| Pipeline              | Started by                                             | Job       | What it does                                                                                                                    |
+| --------------------- | ------------------------------------------------------ | --------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| On the default branch | the weekly schedule, **Run pipeline**, or a push to it | `sync`    | Lists the upstream releases and, oldest first, commits the `templates/` of each one that has no tag here yet and pushes its tag |
+| On a version tag      | `sync`, which pushes one tag per release               | `release` | Publishes that tag to the CI/CD Catalog                                                                                         |
+
+Nothing else starts a pipeline: `workflow:rules` leaves out every other
+branch and every tag that is not a bare `MAJOR.MINOR.PATCH`. That is on
+purpose. `sync` pushes its commits to the default branch, so it must never run
+from the head of another one, and only the tags it creates are published.
+
+**The weekly check is the schedule, and the schedule is yours to create.**
+GitLab keeps pipeline schedules in the project, not in the repository, so
+`.gitlab-ci.yml` cannot bring one. [Step 6](#one-time-setup) of the setup
+creates it. Until then the mirror looks for a new release only when someone
+runs the pipeline by hand, and `sync` says so in its log whenever it was not
+started by a schedule.
 
 Re-running `sync` when nothing changed is a no-op, so the schedule can be as
-aggressive as you like.
+aggressive as you like. Two runs never overlap: `sync` holds a
+`resource_group`, so a manual run that meets the scheduled one waits for it
+and then finds nothing left to publish.
 
 `sync` publishes every release it is missing, not only the newest one. A patch
 released in the same week as the next version still reaches the catalog, and
@@ -75,8 +91,26 @@ and later. On an older instance, switch its image to
    Protected branches_ — the token's user needs push rights on the default
    branch, and _Protected tags_ must allow it to create tags.
 
-6. **Add the schedule**: _Build > Pipeline schedules > New schedule_, cron
-   `0 6 * * 1` (Mondays at 06:00) on the default branch.
+6. **Add the weekly schedule.** This is what makes the mirror check for a new
+   release by itself: _Build > Pipeline schedules > New schedule_, cron
+   `0 6 * * 1` (Mondays at 06:00) on the default branch, **Activated**
+   ticked. Or from a terminal, with [`glab`](https://gitlab.com/gitlab-org/cli)
+   signed in to the instance:
+
+   ```bash
+   glab schedule create --repo tooark/ci-security-scanner \
+     --cron "0 6 * * 1" --cronTimeZone "UTC" --ref main \
+     --description "Weekly sync with Tooark/template-security-scanner"
+   ```
+
+   The schedule runs as whoever created it. If that account is blocked or
+   leaves the project, its schedule stops producing pipelines and the mirror
+   quietly stops following upstream; another maintainer takes it over with
+   **Take ownership** on the same page.
+
+   To check right away instead of waiting for Monday, press the play button
+   of the schedule, or _Build > Pipelines > Run pipeline_ on the default
+   branch.
 
 7. Optionally set `UPSTREAM_TOKEN` to a GitHub token. It is only needed if the
    instance shares an egress IP with enough other traffic to hit GitHub's
@@ -88,7 +122,7 @@ Once the first release lands, projects on the instance include it by path:
 
 ```yaml
 include:
-  - component: $CI_SERVER_FQDN/tooark/ci-security-scanner/full-scan@1.4.0
+  - component: $CI_SERVER_FQDN/tooark/ci-security-scanner/full-scan@1.5.0
     inputs:
       image: "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA"
       trivy_severity: "CRITICAL,HIGH"
@@ -103,14 +137,37 @@ catalog:
 
 | Reference  | Resolves to                     | Use when                           |
 | ---------- | ------------------------------- | ---------------------------------- |
-| `@1.0.0`   | Exactly that version            | Reproducible pipelines             |
-| `@1.0`     | Newest 1.0.x in the catalog     | Automatic patch updates            |
+| `@1.3.1`   | Exactly that version            | Reproducible pipelines             |
+| `@1.3`     | Newest 1.3.x in the catalog     | Automatic patch updates            |
 | `@1`       | Newest 1.x.x in the catalog     | Automatic minor and patch updates  |
 | `@~latest` | Newest version, a new major too | Never in a pipeline you care about |
 
 These are not tags: the mirror pushes only the full version, and needs no
-floating `1` or `1.0` tag to follow the upstream `v1` and `v1.0`. A new patch
-reaches `@1.0` and `@1` as soon as its release job publishes it.
+floating `1` or `1.3` tag to follow the upstream `v1` and `v1.3`. A new patch
+reaches `@1.3` and `@1` as soon as its release job publishes it.
+
+The catalog starts at 1.1.0, the first version upstream published as a
+release; there is no `@1.0.0` to pin.
+
+## Updating the mirror's own pipeline
+
+`sync` replaces `templates/`, `README.md`, `LICENSE` and `VERSION` and nothing
+else. The `.gitlab-ci.yml` of the mirror is local, so a fix to the pipeline in
+this directory does not reach a mirror by itself. When the
+[changelog](../CHANGELOG.md) names a change to the catalog mirror, fetch the
+file again and commit it:
+
+```bash
+cd ci-security-scanner
+git pull
+curl -fsSLO https://raw.githubusercontent.com/Tooark/template-security-scanner/main/catalog-mirror/.gitlab-ci.yml
+git commit -am "chore: update the catalog sync pipeline"
+git push
+```
+
+That push starts a `sync` on the default branch, which doubles as the test of
+the new file. Versions already published are not touched, and the variables,
+the token and the schedule stay as they are.
 
 ## Moving an existing mirror to this repository
 
@@ -153,3 +210,6 @@ becomes catalog version `1.2.3`.
 | The release job fails with `Project must have a description`     | Set the description under _Settings > General_ and retry the job. `Project must have a README` and `Project must contain components` mean the tagged commit lacks `README.md` or `templates/`                                                                                                                            |
 | `found no release of ... tagged vMAJOR.MINOR.PATCH`              | `UPSTREAM_REPO` names a repository without a published release tagged `vX.Y.Z`; drafts and prereleases do not count                                                                                                                                                                                                      |
 | `API rate limit exceeded`                                        | Set `UPSTREAM_TOKEN` to a GitHub token                                                                                                                                                                                                                                                                                   |
+| A release is out upstream and the catalog never gets it          | No pipeline ran since. Under _Build > Pipeline schedules_, check that the schedule exists, is **active** and has an owner who can still run pipelines; then press its play button. A `sync` log that opens with `started by 'web', not by a schedule` on every run means no scheduled run ever happened                  |
+| No pipeline starts for a branch or a tag                         | Expected for any branch but the default one, and for a tag that is not a bare `MAJOR.MINOR.PATCH`: `workflow:rules` leaves both out                                                                                                                                                                                      |
+| `sync` sits in _waiting for resource_                            | Another `sync` is running; the two share a `resource_group`. It starts when the first one ends                                                                                                                                                                                                                           |

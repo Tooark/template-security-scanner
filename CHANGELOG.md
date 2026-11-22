@@ -6,6 +6,142 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-11-22
+
+The scanner image moves to 1.14, which changes what a job sends to
+`report_url`. **Read this before upgrading if a pipeline sets `report_url`,
+`REPORT_URL` or `REPORT_SBOM_URL`**; a pipeline that sets none of them only
+gains the source-code SBOM below. Two inputs are added and none is removed.
+One is deprecated: `scan_path` of `full-scan` gives way to `path`, keeps
+working for now and **goes away in 2.0.0**. The only default that changes is
+`scanner_version`.
+
+### Changed
+
+- Scanner image bumped to `ghcr.io/tooark/security-scanner:1.14`, the new
+  default of `scanner_version`. The tools are the ones of 1.13 (Trivy 0.76.2,
+  Betterleaks 1.10.1, Hadolint 2.15.1) and the `ark-report-tools` envelope is
+  still v1.3. What changes is the upload:
+  - **Every template sends its report.** `image-scan`, `filesystem-scan`,
+    `config-scan`, `repo-scan`, `secret-scan` and `dockerfile-lint` now POST
+    their envelope when `report_url` or a `REPORT_URL` variable is set. They
+    accepted the input before and sent nothing; only `full-scan` did. A
+    collector starts receiving envelopes whose `command` is not `full-scan`,
+    with the result in `report` instead of `results`. If it turns them down
+    and `REPORT_FAIL_ON_ERROR` is `true`, a job that passed starts failing.
+    Either accept them, routing on `command`, or set the CI/CD variable
+    `REPORT_SEND_EACH_SCAN: "false"`. `full-scan` is not affected: it still
+    sends one consolidated report.
+  - **A single scan that cannot see `REPORT_TOKEN` now sends without it.** A
+    protected `REPORT_TOKEN` does not reach a merge-request job from an
+    unprotected branch. A single scan there used to send nothing; with a
+    `REPORT_URL` it does see, it now sends without `Authorization`, and a
+    collector answering 401 fails it under `REPORT_FAIL_ON_ERROR`.
+  - **`image-scan` and `filesystem-scan` with `sbom: true` upload the SBOM
+    too**, to `REPORT_URL` unless `REPORT_SBOM_URL` is set. The SBOM is sent
+    bare, with no envelope around it.
+  - **The SBOM upload no longer borrows the report credentials.** With
+    `REPORT_SBOM_URL` set, it uses `REPORT_SBOM_TOKEN` and
+    `REPORT_SBOM_HEADERS` alone; `REPORT_TOKEN` and `REPORT_HEADERS` are
+    never sent there. A pipeline that set the URL and relied on the report
+    token gets a 401 or 403 from the SBOM endpoint: set `REPORT_SBOM_TOKEN`,
+    even when the token is the same. Without `REPORT_SBOM_URL` nothing
+    changes. The image calls this one breaking.
+  - **Upload log lines are reworded**, to `Sending report to …` and
+    `Upload of report succeeded (HTTP 200)`. Adjust anything that greps the
+    job log for `Report uploaded`.
+
+  A project that needs time pins `scanner_version: "1.13"`. Released as a
+  minor because the image moved a minor: the scanner default follows the
+  image's own versioning (see `CONTRIBUTING.md`).
+- Both READMEs describe the upload as it now is: what each template sends,
+  the `REPORT_SEND_EACH_SCAN` opt-out, and under Secrets the
+  `REPORT_SBOM_HEADERS` variable and the rule that a `REPORT_SBOM_URL`
+  carries its own credentials.
+- `examples/catalog-component.gitlab-ci.yml` sets `REPORT_URL` and
+  `REPORT_FAIL_ON_ERROR` for the whole pipeline, so its two merge-request
+  jobs now send a report each. Its comment says what the collector has to
+  accept, and how to send the consolidated report alone.
+- Both READMEs warn, under Gotchas, that a report URL set for the whole
+  pipeline reaches every scan, and say how to keep one job quiet.
+- **Catalog mirror: re-fetch `catalog-mirror/.gitlab-ci.yml` to get these**
+  (`catalog-mirror/README.md`, "Updating the mirror's own pipeline"); a
+  mirror that keeps the old file goes on working as before.
+  - Pipelines now start only on the default branch and on a tag that is a
+    bare `MAJOR.MINOR.PATCH`. "Run pipeline" on another branch used to run
+    `sync` from that branch's head and push it to the default branch; it now
+    starts nothing.
+  - `sync` holds a `resource_group`, so a manual run that meets the scheduled
+    one waits for it instead of racing it to push the same tags.
+  - `sync` says in its log when it was not started by a schedule. The weekly
+    check has always depended on a pipeline schedule that the file cannot
+    create; the README now says so up front, gives the `glab` command for
+    it, and lists what to look at when a release never reaches the catalog.
+  - The README's table of partial versions used `@1.0.0` and `@1.0`, which no
+    mirror has: the catalog starts at 1.1.0. It now uses versions that exist.
+- **A release is now published by merging the version bump, not by pushing a
+  tag.** On every push to `main` that touches `VERSION`, the release workflow
+  looks for the tag and the release of `v<COMPONENT_VERSION>`: when both
+  exist it publishes nothing, otherwise it runs the checks, tags that commit
+  and creates the release. Nothing changes for a consumer, with two
+  exceptions worth knowing:
+  - the release notes now open with the changelog section of the version,
+    followed by the generated list of pull requests;
+  - `vMAJOR` and `vMAJOR.MINOR` move only when the release is the newest of
+    its line. A patch cut for an older line (`1.4.1` after `1.5.0`) used to
+    drag `v1` back to it.
+
+### Deprecated
+
+- **`scan_path`, the input of `full-scan`, in favour of `path`.** It is the
+  same setting under the name the other templates and the GitHub Action
+  already use. Nothing breaks in this release, which is why it is a minor:
+  - a pipeline that passes `scan_path` scans the same directory as before,
+    and its job log carries one line saying the input is deprecated;
+  - a pipeline that passes neither still scans `$CI_PROJECT_DIR`;
+  - when both are set, `path` wins and the log says `scan_path` was ignored.
+
+  **`scan_path` will be removed in 2.0.0, and that removal is a breaking
+  change:** GitLab refuses an include that passes an input the template does
+  not declare, so a pipeline still using it will fail to be created. Rename
+  `scan_path` to `path` before then; the value does not change.
+
+### Added
+
+- `path` input on `full-scan`, replacing `scan_path` (see Deprecated). Its
+  default is `$CI_PROJECT_DIR`, as in the other templates.
+
+- `report_sbom_url` input, on `full-scan`, `image-scan` and
+  `filesystem-scan`: the destination of the SBOM, next to `report_url`. It
+  sets `REPORT_SBOM_URL`, which could only be set as a CI/CD variable; that
+  still works, and the input wins when both are present. Left empty, the SBOM
+  keeps going to `report_url`. Its token is a secret and stays out of the
+  inputs: `REPORT_SBOM_TOKEN` and `REPORT_SBOM_HEADERS` are masked CI/CD
+  variables, like `REPORT_TOKEN`, because an input value shows in the
+  rendered pipeline and in the job log. The sister Action gained the same
+  input, `report-sbom-url`, in its 1.5.0.
+- `full-scan` with `sbom: true` and no image step writes an SBOM of the
+  source code: `trivy-filesystem.sbom.json`, or `trivy-repo.sbom.json` with
+  `scan_mode: "repo"`. That is the case whenever `image` is empty, since the
+  template then skips the image step. It used to write no SBOM and say
+  nothing, while the envelope still reported `sbom_enabled: true`. With an
+  image the SBOM still describes the image. The description of the `sbom`
+  input of `full-scan` now covers both cases.
+- Every upload carries the header `X-Ark-Payload: report` or
+  `X-Ark-Payload: sbom`, so a collector that receives both on one endpoint
+  can route without parsing the body.
+- Three examples, the counterparts of the ones the GitHub Action ships:
+  `report-webhook.gitlab-ci.yml` (the report sent to a collector),
+  `report-and-sbom.gitlab-ci.yml` (the report to one endpoint, the SBOM to
+  another, each with its own token) and `all-inputs.gitlab-ci.yml` (every
+  input with its default written out).
+- Checks that keep the above from drifting. `check-sync.sh` now fails when an
+  example writes out a `scanner_version` other than the one in `VERSION`,
+  when the onboarding guide counts a different number of inputs than the
+  templates declare, and when `CHANGELOG.md` has no section for
+  `COMPONENT_VERSION`. `check-examples.py` fails when `all-inputs` leaves an
+  input out, and when any example or README snippet passes a deprecated one.
+
 ## [1.4.0] - 2026-11-19
 
 The scanner image moves to 1.13, and the catalog mirror stops skipping
@@ -354,7 +490,8 @@ a tag — this content first reached consumers as part of 1.1.0.
   socket mount, unredacted Betterleaks output, and Trivy's secret scanner
   writing findings into an uploaded artifact.
 
-[Unreleased]: https://github.com/Tooark/template-security-scanner/compare/v1.4.0...HEAD
+[Unreleased]: https://github.com/Tooark/template-security-scanner/compare/v1.5.0...HEAD
+[1.5.0]: https://github.com/Tooark/template-security-scanner/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/Tooark/template-security-scanner/compare/v1.3.1...v1.4.0
 [1.3.1]: https://github.com/Tooark/template-security-scanner/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/Tooark/template-security-scanner/compare/v1.2.0...v1.3.0

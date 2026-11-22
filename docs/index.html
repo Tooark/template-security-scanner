@@ -1743,7 +1743,7 @@
           <div lang="pt-BR">
             <h2>Mapa do repositório</h2>
             <p class="deck">
-              Quarenta e poucos arquivos; os que importam cabem em cinco grupos
+              Uns cinquenta arquivos; os que importam cabem em cinco grupos
               com propósitos bem distintos.
             </p>
 
@@ -1827,7 +1827,15 @@
               <div class="row">
                 <span class="f">.github/workflows/release.yml</span
                 ><span class="d"
-                  >Publica release e move as tags flutuantes</span
+                  >Publica o release quando o VERSION traz uma versão
+                  nova</span
+                >
+              </div>
+              <div class="row">
+                <span class="f">scripts/release.sh</span
+                ><span class="d"
+                  >Decide se há release a publicar, cria a tag e move as
+                  flutuantes</span
                 >
               </div>
               <div class="row">
@@ -1884,7 +1892,7 @@
           <div lang="en">
             <h2>Repository map</h2>
             <p class="deck">
-              Forty-odd files; the ones that matter fit in five groups with
+              Some fifty files; the ones that matter fit in five groups with
               clearly distinct purposes.
             </p>
 
@@ -1970,7 +1978,15 @@
               <div class="row">
                 <span class="f">.github/workflows/release.yml</span
                 ><span class="d"
-                  >Publishes the release and moves the floating tags</span
+                  >Publishes the release when VERSION brings a new
+                  version</span
+                >
+              </div>
+              <div class="row">
+                <span class="f">scripts/release.sh</span
+                ><span class="d"
+                  >Decides whether there is a release to publish, tags it and
+                  moves the floating tags</span
                 >
               </div>
               <div class="row">
@@ -2204,7 +2220,7 @@
             <p>
               É a assinatura de função pública da biblioteca: o contrato com
               quem consome, e mudá-la quebra gente. Um template declara de 18 a
-              40 inputs, e só um é obrigatório: o <code>image</code> do
+              42 inputs, e só um é obrigatório: o <code>image</code> do
               <code>image-scan</code>. <code>type:</code>,
               <code>options:</code> e <code>regex:</code> restringem o valor, e
               o GitLab confere antes de o pipeline existir.
@@ -2343,7 +2359,7 @@ ark-tools "$@"</code></pre>
             <p>
               It is the library's public function signature: the contract with
               consumers, and changing it breaks people. A template declares 18
-              to 40 inputs, and only one is required: <code>image</code> in
+              to 42 inputs, and only one is required: <code>image</code> in
               <code>image-scan</code>. <code>type:</code>,
               <code>options:</code> and <code>regex:</code> constrain the value,
               and GitLab checks them before the pipeline exists.
@@ -2854,7 +2870,7 @@ python3 scripts/validate-templates.py
 ./scripts/check-sync.sh
 python3 scripts/check-examples.py
 python3 tests/templates.test.py
-shellcheck -s bash scripts/*.sh</code></pre>
+shellcheck -s bash scripts/*.sh tests/*.sh</code></pre>
           </div>
 
           <div lang="en">
@@ -2974,7 +2990,7 @@ python3 scripts/validate-templates.py
 ./scripts/check-sync.sh
 python3 scripts/check-examples.py
 python3 tests/templates.test.py
-shellcheck -s bash scripts/*.sh</code></pre>
+shellcheck -s bash scripts/*.sh tests/*.sh</code></pre>
           </div>
         </section>
 
@@ -2996,7 +3012,8 @@ shellcheck -s bash scripts/*.sh</code></pre>
               <strong>Job <code>lint</code>:</strong> parseia todo YAML do
               repositório, roda as quatro verificações da seção anterior, passa
               o <code>shellcheck</code> (linter de shell) em
-              <code class="path">scripts/</code> e no script de job de cada
+              <code class="path">scripts/</code>, em
+              <code class="path">tests/</code> e no script de job de cada
               template — extraído pelos testes e lintado como <code>sh</code>,
               porque nada nele pode depender do shell que o runner escolher — e
               roda o <code>actionlint</code> (linter de GitHub Actions).
@@ -3030,19 +3047,20 @@ shellcheck -s bash scripts/*.sh</code></pre>
             </div>
 
             <h3>
-              <code>release.yml</code> — roda ao dar push em uma tag
-              <code>v*.*.*</code>
+              <code>release.yml</code> — roda a cada push na
+              <code>main</code> que mexe no <code>VERSION</code>
             </h3>
 
             <p>
-              Roda de novo as cinco validações locais,
+              Ninguém envia tag. O workflow
               <strong
-                >confere se a tag bate com
-                <code>COMPONENT_VERSION</code></strong
-              >
-              — tag <code>v1.0.1</code> com <code>VERSION=1.0.0</code> é release
-              recusada —, cria o GitHub Release com notas geradas e move as tags
-              flutuantes.
+                >procura a tag e o release de
+                <code>v&lt;COMPONENT_VERSION&gt;</code></strong
+              >. Se os dois existem, não publica nada. Se não existem, roda de
+              novo as cinco validações locais, cria a tag naquele commit, cria
+              o GitHub Release com a seção do changelog como notas e move as
+              tags flutuantes. Fazer o merge do PR que sobe o
+              <code>COMPONENT_VERSION</code> é, portanto, o release.
             </p>
 
             <div class="table-wrap">
@@ -3117,7 +3135,8 @@ shellcheck -s bash scripts/*.sh</code></pre>
               <strong>Job <code>lint</code>:</strong> parses every YAML file in
               the repository, runs the four checks of the previous section, runs
               <code>shellcheck</code> (a shell linter) over
-              <code class="path">scripts/</code> and over the job script of each
+              <code class="path">scripts/</code>,
+              <code class="path">tests/</code> and the job script of each
               template — dumped by the tests and linted as <code>sh</code>,
               because nothing in it may depend on the shell a runner picks — and
               runs <code>actionlint</code> (a GitHub Actions linter).
@@ -3151,19 +3170,20 @@ shellcheck -s bash scripts/*.sh</code></pre>
             </div>
 
             <h3>
-              <code>release.yml</code> — runs when a <code>v*.*.*</code> tag is
-              pushed
+              <code>release.yml</code> — runs on every push to
+              <code>main</code> that touches <code>VERSION</code>
             </h3>
 
             <p>
-              Reruns the five local validations,
+              Nobody pushes a tag. The workflow
               <strong
-                >checks that the tag agrees with
-                <code>COMPONENT_VERSION</code></strong
-              >
-              — tag <code>v1.0.1</code> with <code>VERSION=1.0.0</code> is a
-              refused release — creates the GitHub Release with generated notes,
-              and moves the floating tags.
+                >looks for the tag and the release of
+                <code>v&lt;COMPONENT_VERSION&gt;</code></strong
+              >. When both exist it publishes nothing. When they do not, it
+              reruns the five local validations, tags that commit, creates the
+              GitHub Release with the changelog section as its notes, and moves
+              the floating tags. Merging the pull request that bumps
+              <code>COMPONENT_VERSION</code> is therefore the release.
             </p>
 
             <div class="table-wrap">

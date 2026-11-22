@@ -57,8 +57,14 @@ jobs:
       - name: Test the jobs the templates generate
         run: python3 tests/templates.test.py
 
+      # Publishing cannot be taken back, so every state the release script can
+      # find is played out here, against a throwaway repository and a stand-in
+      # gh, long before a merge runs it for real.
+      - name: Test the release script
+        run: bash tests/release.test.sh
+
       - name: ShellCheck
-        run: shellcheck -s bash scripts/*.sh
+        run: shellcheck -s bash scripts/*.sh tests/*.sh
 
       # The script blocks inside the templates are shell too, and they run in
       # every consuming pipeline. sh, not bash: nothing in them may depend on
@@ -90,13 +96,13 @@ jobs:
       # end of the same scanner: the sister Action, which runs the same image
       # and the same ark-tools commands as the templates here.
       - name: Scan this repository for secrets
-        uses: Tooark/action-security-scanner@v1.3.0
+        uses: Tooark/action-security-scanner@v1.5.0
         with:
           command: secret-scan
           artifact-name: self-scan-reports
 
       - name: Scan this repository for vulnerable dependencies
-        uses: Tooark/action-security-scanner@v1.3.0
+        uses: Tooark/action-security-scanner@v1.5.0
         with:
           command: filesystem-scan
           trivy-severity: CRITICAL,HIGH

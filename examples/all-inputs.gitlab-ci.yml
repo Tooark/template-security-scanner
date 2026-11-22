@@ -1,0 +1,193 @@
+# =============================================================================
+# Every input of the templates, in one place.
+# -----------------------------------------------------------------------------
+# A reference to pick from, not a pipeline to copy whole: delete what you do
+# not need. An input you leave out behaves exactly like the value shown here,
+# because every value below is the default or changes nothing:
+#
+#   - a value such as "error" or "10m" is the default, written out;
+#   - "" is how an input with no default is left unset. An empty input is
+#     never forwarded, so the image default (or a CI/CD variable of the
+#     project) applies. The comment gives an example of a real value.
+#
+# One thing a written-out default does change: an input always wins over a
+# CI/CD variable. If the project sets TRIVY_SEVERITY, keeping `trivy_severity`
+# below overrides it, default or not. Delete the input, or leave it "",
+# wherever the variable is meant to decide.
+#
+# No single template declares every input, so the file has four includes:
+# full-scan carries all of its own, and the last three show the inputs that
+# belong to another template (`target`, `dockerfile`, `no_git` and the two
+# log limits).
+#
+# Types matter. `sbom` and `allow_failure` are booleans and `rules` and `tags`
+# are arrays; every other input is a string, "true" and "false" included.
+#
+# Secrets are not inputs: an input value shows in the rendered pipeline and in
+# the job log. They are masked CI/CD variables (Settings > CI/CD > Variables)
+# and reach the job by themselves; the block at the end of this file lists
+# them.
+# =============================================================================
+stages:
+  - test
+
+include:
+  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.0/templates/full-scan.yml"
+    inputs:
+      # --- the job ------------------------------------------------------------
+      # Change it to include the template more than once.
+      job_name: "security:full-scan"
+      # The stage must exist in the pipeline.
+      stage: "test"
+      # Change the repository to pull from a mirror.
+      scanner_image: "ghcr.io/tooark/security-scanner"
+      # Pin a tag; `latest` makes pipelines non-reproducible.
+      scanner_version: "1.14"
+      # true lets the pipeline go on when a failure gate trips.
+      allow_failure: false
+      # Replace to decide when the scan runs.
+      rules:
+        - when: on_success
+      # Runner tags. Empty takes any runner. E.g. ["docker"]
+      tags: []
+      timeout: "1h"
+
+      # --- reports ------------------------------------------------------------
+      # Where the reports are written, relative to the project directory.
+      reports_dir: "scan-reports"
+      # How long the report artifacts are kept.
+      artifacts_expire_in: "7 days"
+
+      # --- what to scan -------------------------------------------------------
+      # Image to scan. Required by image-scan; without it full-scan skips its
+      # image step. E.g. "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA"
+      image: ""
+      # Directory to scan.
+      path: "$CI_PROJECT_DIR"
+      # Dockerfiles linted by full-scan, comma-separated, relative to path.
+      dockerfiles: "Dockerfile"
+      # How full-scan scans the source tree: fs or repo.
+      scan_mode: "fs"
+      # Turn off one step of full-scan. skip_image stays empty on purpose:
+      # with no `image` the template skips that step by itself, and a
+      # written-out "false" would turn that off and fail the scan with
+      # "<image> required".
+      skip_image: ""
+      skip_lint: "false"
+      skip_secrets: "false"
+      # Clone depth. 0 is the whole history, which Betterleaks walks.
+      git_depth: "0"
+      # Extra flags for Trivy, passed after `--`.
+      # E.g. "--skip-dirs node_modules"
+      extra_args: ""
+
+      # --- sbom ---------------------------------------------------------------
+      # Also write an SBOM: of the image in image-scan and in a full-scan that
+      # has one, of the source tree in filesystem-scan and in a full-scan
+      # without `image`.
+      sbom: false
+      # cyclonedx or spdx-json.
+      sbom_format: "cyclonedx"
+
+      # --- trivy --------------------------------------------------------------
+      # Severities written to the report.
+      trivy_severity: "UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL"
+      # Severities that fail the job.
+      trivy_severity_fail: "HIGH,CRITICAL"
+      # Leave vulnerabilities without a fix out of the report.
+      trivy_ignore_unfixed: "false"
+      # Fail only on vulnerabilities that have a fix.
+      trivy_ignore_unfixed_fail: "true"
+      # "0" turns the Trivy gate off.
+      trivy_exit_code: "1"
+      # json, sarif, table, cyclonedx or spdx-json. Anything but json adds a
+      # converted copy next to the JSON report.
+      trivy_format: "json"
+      # Empty keeps Trivy's own choice. E.g. "vuln,secret,misconfig,license"
+      trivy_scanners: ""
+      trivy_timeout: "10m"
+      # Scan through a Trivy server. E.g. "https://trivy.example.com:4954";
+      # its token is the masked variable TRIVY_TOKEN.
+      trivy_server: ""
+      # Empty picks up a .trivyignore at the project root.
+      # E.g. ".security/trivyignore"
+      trivy_ignorefile: ""
+
+      # --- hadolint -----------------------------------------------------------
+      # Lowest level that fails the job: error, warning, info, style or none.
+      hadolint_failure_level: "error"
+      # E.g. ".hadolint.yaml"
+      hadolint_config: ""
+      # json, tty or sarif.
+      hadolint_format: "json"
+
+      # --- betterleaks --------------------------------------------------------
+      # Fail the job when a secret is detected.
+      betterleaks_fail_on_findings: "true"
+      # Share of each secret masked in the report, 0 to 100. Lower it only if
+      # the artifact is as restricted as the secrets themselves.
+      betterleaks_redact: "100"
+      # E.g. ".betterleaks.toml"
+      betterleaks_config: ""
+      # Findings already accepted. E.g. ".security/betterleaks-baseline.json"
+      betterleaks_baseline: ""
+
+      # --- report webhook -----------------------------------------------------
+      # Comma-separated URLs the report is POSTed to, by every template (see
+      # report-webhook.gitlab-ci.yml).
+      # E.g. "https://security-hub.example.com/api/reports"
+      report_url: ""
+      # Where the SBOM goes instead of report_url (see
+      # report-and-sbom.gitlab-ci.yml).
+      # E.g. "https://sbom-inventory.example.com/api/sboms"
+      report_sbom_url: ""
+      # Fail the job when the upload fails.
+      report_fail_on_error: "false"
+
+  # --- inputs that belong to other templates ----------------------------------
+
+  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.0/templates/repo-scan.yml"
+    inputs:
+      # Local path or remote repository URL.
+      # E.g. "https://gitlab.example.com/my-group/another-project.git"
+      target: "$CI_PROJECT_DIR"
+
+  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.0/templates/dockerfile-lint.yml"
+    inputs:
+      # The one Dockerfile to lint.
+      dockerfile: "$CI_PROJECT_DIR/Dockerfile"
+      # Findings itemized in the job log.
+      hadolint_log_max_findings: "20"
+
+  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.0/templates/secret-scan.yml"
+    inputs:
+      # "true" scans only the working tree and skips the git history.
+      no_git: "false"
+      # json, csv, junit, sarif or template.
+      betterleaks_format: "json"
+      # Findings itemized in the job log.
+      betterleaks_log_max_findings: "20"
+
+# -----------------------------------------------------------------------------
+# What has no input. The jobs run inside the scanner image, so any variable the
+# image reads works, set here or under Settings > CI/CD > Variables.
+#
+# Secrets go under Settings only, masked, and never in this file:
+#
+#   REPORT_TOKEN                      bearer token sent to `report_url`
+#   REPORT_SBOM_TOKEN                 bearer token sent to `report_sbom_url`,
+#                                     which never receives REPORT_TOKEN
+#   TRIVY_USERNAME, TRIVY_PASSWORD    a private registry
+#   TRIVY_TOKEN                       a Trivy server
+#
+# REPORT_HEADERS and REPORT_SBOM_HEADERS (extra request headers, one per line,
+# the second never falling back to the first) belong with them whenever a
+# header carries a credential, and can live here when none does.
+# -----------------------------------------------------------------------------
+# variables:
+#   REPORT_METHOD: "POST"
+#   REPORT_HEADERS: "X-Project: $CI_PROJECT_PATH"
+#   # "false" stops a single scan from sending; full-scan always sends.
+#   REPORT_SEND_EACH_SCAN: "false"
+#   # Reuse the cached vulnerability database without refreshing it.
+#   TRIVY_SKIP_DB_UPDATE: "true"
