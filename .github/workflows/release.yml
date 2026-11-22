@@ -1,73 +1,96 @@
+# =============================================================================
+# template-security-scanner :: Release
+# -----------------------------------------------------------------------------
+# A release is COMPONENT_VERSION reaching main. Every push to main that touches
+# VERSION asks one question: does v<COMPONENT_VERSION> already have a tag and a
+# release?
+#
+#   yes   nothing is published. A push that only moves SCANNER_VERSION, or
+#         that rewords a comment in the file, ends here.
+#   no    the checks run, this commit is tagged v<COMPONENT_VERSION>, the
+#         release is created with the changelog section as its notes, and the
+#         floating vMAJOR and vMAJOR.MINOR tags follow.
+#
+# Nobody pushes a version tag: merging the pull request that bumps VERSION is
+# the release. The logic lives in scripts/release.sh, which
+# tests/release.test.sh plays out against a throwaway repository.
+#
+# Only main releases. A branch that bumps VERSION ahead of its pull request
+# must not publish before the review.
+#
+# The tag ruleset of the repository has to let this workflow create v*.*.*
+# tags; see Releasing in CONTRIBUTING.md.
+# =============================================================================
 name: Release
 
 on:
   push:
-    tags: ["v*.*.*"]
+    branches: [main]
+    paths:
+      - "VERSION"
+  # Finishes a run that failed halfway: with the release already published it
+  # does nothing but put the floating tags right.
+  workflow_dispatch:
 
 permissions:
   contents: write
+
+# One release at a time, and never cancel one in flight: a run stopped between
+# the release and the floating tags would leave them on the previous version.
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 jobs:
   release:
     name: Publish release
     runs-on: ubuntu-latest
+    # workflow_dispatch offers every branch; only main is ever released.
+    if: github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
+      - name: Decide whether VERSION names a new release
+        id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash scripts/release.sh plan
+
+      # The checks run only when something is about to be published: what a
+      # consumer pins must have passed them on the very commit it points at.
       - name: Install PyYAML
+        if: steps.plan.outputs.state != 'published'
         run: python3 -m pip install --quiet pyyaml
 
       - name: Validate the component templates
+        if: steps.plan.outputs.state != 'published'
         run: python3 scripts/validate-templates.py
 
       - name: Check version pinning, input wiring and docs
+        if: steps.plan.outputs.state != 'published'
         run: bash scripts/check-sync.sh
 
       - name: Check the examples against the templates
+        if: steps.plan.outputs.state != 'published'
         run: python3 scripts/check-examples.py
 
       - name: Test the jobs the templates generate
+        if: steps.plan.outputs.state != 'published'
         run: python3 tests/templates.test.py
 
+      - name: Test the release script
+        if: steps.plan.outputs.state != 'published'
+        run: bash tests/release.test.sh
+
       - name: ShellCheck
-        run: shellcheck -s bash scripts/*.sh
+        if: steps.plan.outputs.state != 'published'
+        run: shellcheck -s bash scripts/*.sh tests/*.sh
 
-      # The tag is what downstream consumers pin, so it must agree with the
-      # version recorded in the repository.
-      - name: Check the tag matches VERSION
-        run: |
-          tag="${GITHUB_REF_NAME#v}"
-          declared="$(grep -E '^COMPONENT_VERSION=' VERSION | cut -d= -f2-)"
-          echo "tag=$tag VERSION=$declared"
-          if [ "$tag" != "$declared" ]; then
-            echo "::error::tag v$tag does not match COMPONENT_VERSION=$declared in VERSION"
-            exit 1
-          fi
-
-      - name: Create the GitHub release
+      # Decides again rather than trusting the answer of the first step: the
+      # checks take minutes, and the tags are read at the moment they matter.
+      - name: Publish the release and point the floating tags at it
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
-          gh release create "$GITHUB_REF_NAME" \
-            --title "$GITHUB_REF_NAME" \
-            --generate-notes \
-            --verify-tag
-
-      # Floating tags let consumers track a major or minor line without
-      # rewriting every pipeline on each patch.
-      - name: Move the floating major and minor tags
-        run: |
-          version="${GITHUB_REF_NAME#v}"
-          major="v${version%%.*}"
-          minor="v$(echo "$version" | cut -d. -f1,2)"
-
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-          for alias in "$major" "$minor"; do
-            echo "moving $alias -> $GITHUB_REF_NAME"
-            git tag -f "$alias" "$GITHUB_REF_NAME"
-            git push -f origin "refs/tags/$alias"
-          done
+        run: bash scripts/release.sh publish

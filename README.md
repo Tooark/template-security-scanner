@@ -80,7 +80,7 @@ Works on gitlab.com and on any instance that can reach
 
 ```yaml
 include:
-  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.4.0/templates/full-scan.yml"
+  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.0/templates/full-scan.yml"
 ```
 
 That one include adds a `security:full-scan` job to the `test` stage. With no
@@ -92,7 +92,7 @@ To include the container image the pipeline has built:
 
 ```yaml
 include:
-  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.4.0/templates/full-scan.yml"
+  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.0/templates/full-scan.yml"
     inputs:
       stage: test
       image: "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA"
@@ -108,7 +108,7 @@ has published a version to yours:
 
 ```yaml
 include:
-  - component: $CI_SERVER_FQDN/tooark/ci-security-scanner/full-scan@1.4.0
+  - component: $CI_SERVER_FQDN/tooark/ci-security-scanner/full-scan@1.5.0
     inputs:
       image: "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA"
       trivy_severity: "CRITICAL,HIGH"
@@ -117,11 +117,14 @@ include:
 Complete pipelines, ready to copy, live in
 [`examples/`](https://github.com/Tooark/template-security-scanner/tree/main/examples):
 
-| Example                                                                                                                                     | What it shows                                                             |
-| ------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| [`quick-start.gitlab-ci.yml`](https://github.com/Tooark/template-security-scanner/blob/main/examples/quick-start.gitlab-ci.yml)             | The one-line include above                                                |
-| [`remote-include.gitlab-ci.yml`](https://github.com/Tooark/template-security-scanner/blob/main/examples/remote-include.gitlab-ci.yml)       | Build, full scan of the pushed image, a merge-request job, a job override |
-| [`catalog-component.gitlab-ci.yml`](https://github.com/Tooark/template-security-scanner/blob/main/examples/catalog-component.gitlab-ci.yml) | The same scans as catalog components, with rules and runner tags          |
+| Example                                                                                                                                     | What it shows                                                                 |
+| ------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| [`quick-start.gitlab-ci.yml`](https://github.com/Tooark/template-security-scanner/blob/main/examples/quick-start.gitlab-ci.yml)             | The one-line include above                                                    |
+| [`remote-include.gitlab-ci.yml`](https://github.com/Tooark/template-security-scanner/blob/main/examples/remote-include.gitlab-ci.yml)       | Build, full scan of the pushed image, a merge-request job, a job override     |
+| [`catalog-component.gitlab-ci.yml`](https://github.com/Tooark/template-security-scanner/blob/main/examples/catalog-component.gitlab-ci.yml) | The same scans as catalog components, with rules and runner tags              |
+| [`report-webhook.gitlab-ci.yml`](https://github.com/Tooark/template-security-scanner/blob/main/examples/report-webhook.gitlab-ci.yml)       | The report sent to a collector, by `full-scan` and by a scheduled single scan |
+| [`report-and-sbom.gitlab-ci.yml`](https://github.com/Tooark/template-security-scanner/blob/main/examples/report-and-sbom.gitlab-ci.yml)     | The report to one endpoint and the SBOM to another, each with its own token   |
+| [`all-inputs.gitlab-ci.yml`](https://github.com/Tooark/template-security-scanner/blob/main/examples/all-inputs.gitlab-ci.yml)               | Every input, with its default written out: a reference to pick from           |
 
 ---
 
@@ -144,15 +147,15 @@ The full support matrix is in
 Each template generates exactly one job, named `security:<template>`, that runs
 the `ark-tools` command of the same name inside the image.
 
-| Template                                               | Tool        | What it does                                                  | Main input           |
-| ------------------------------------------------------ | ----------- | ------------------------------------------------------------- | -------------------- |
-| [`full-scan.yml`](templates/full-scan.yml)             | all three   | Image + source + secrets + Dockerfile lint, one merged report | `image`, `scan_path` |
-| [`image-scan.yml`](templates/image-scan.yml)           | Trivy       | Vulnerability scan of a container image                       | `image` (required)   |
-| [`filesystem-scan.yml`](templates/filesystem-scan.yml) | Trivy       | Scan of the source tree (lockfiles, OS and language deps)     | `path`               |
-| [`config-scan.yml`](templates/config-scan.yml)         | Trivy       | IaC / misconfiguration scan                                   | `path`               |
-| [`repo-scan.yml`](templates/repo-scan.yml)             | Trivy       | Repository scan; accepts a remote URL                         | `target`             |
-| [`dockerfile-lint.yml`](templates/dockerfile-lint.yml) | Hadolint    | Lint of one Dockerfile                                        | `dockerfile`         |
-| [`secret-scan.yml`](templates/secret-scan.yml)         | Betterleaks | Secrets in the working tree and the git history               | `path`, `no_git`     |
+| Template                                               | Tool        | What it does                                                  | Main input         |
+| ------------------------------------------------------ | ----------- | ------------------------------------------------------------- | ------------------ |
+| [`full-scan.yml`](templates/full-scan.yml)             | all three   | Image + source + secrets + Dockerfile lint, one merged report | `image`, `path`    |
+| [`image-scan.yml`](templates/image-scan.yml)           | Trivy       | Vulnerability scan of a container image                       | `image` (required) |
+| [`filesystem-scan.yml`](templates/filesystem-scan.yml) | Trivy       | Scan of the source tree (lockfiles, OS and language deps)     | `path`             |
+| [`config-scan.yml`](templates/config-scan.yml)         | Trivy       | IaC / misconfiguration scan                                   | `path`             |
+| [`repo-scan.yml`](templates/repo-scan.yml)             | Trivy       | Repository scan; accepts a remote URL                         | `target`           |
+| [`dockerfile-lint.yml`](templates/dockerfile-lint.yml) | Hadolint    | Lint of one Dockerfile                                        | `dockerfile`       |
+| [`secret-scan.yml`](templates/secret-scan.yml)         | Betterleaks | Secrets in the working tree and the git history               | `path`, `no_git`   |
 
 `full-scan` without an `image` skips the image step; the other steps can be
 turned off with `skip_lint` and `skip_secrets`.
@@ -204,27 +207,33 @@ On every template.
 | `reports_dir`         | `scan-reports`                    | Where reports are written, relative to the project directory |
 | `artifacts_expire_in` | `7 days`                          | How long the report artifacts are kept                       |
 | `scanner_image`       | `ghcr.io/tooark/security-scanner` | Change it to pull from a mirror                              |
-| `scanner_version`     | `1.13`                            | Image tag. Pin it; `latest` makes pipelines non-reproducible |
+| `scanner_version`     | `1.14`                            | Image tag. Pin it; `latest` makes pipelines non-reproducible |
 | `extra_args`          | —                                 | Extra flags forwarded to the underlying tool after `--`      |
 
 ### What to scan
 
-| Input          | Default                      | Templates                                       | Notes                                                                                |
-| -------------- | ---------------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------------ |
-| `image`        | —                            | `full-scan`, `image-scan`                       | Image reference. Empty skips the image step of `full-scan`; required by `image-scan` |
-| `scan_path`    | `$CI_PROJECT_DIR`            | `full-scan`                                     | Project path scanned for vulnerabilities, secrets and Dockerfiles                    |
-| `path`         | `$CI_PROJECT_DIR`            | `filesystem-scan`, `config-scan`, `secret-scan` | Directory to scan                                                                    |
-| `target`       | `$CI_PROJECT_DIR`            | `repo-scan`                                     | Local path or remote repository URL                                                  |
-| `dockerfile`   | `$CI_PROJECT_DIR/Dockerfile` | `dockerfile-lint`                               | The one Dockerfile to lint                                                           |
-| `dockerfiles`  | `Dockerfile`                 | `full-scan`                                     | Comma-separated Dockerfiles, relative to `scan_path`                                 |
-| `scan_mode`    | `fs`                         | `full-scan`                                     | Trivy source scan mode: `fs` or `repo`                                               |
-| `skip_image`   | `false`                      | `full-scan`                                     | Skip the Trivy image step                                                            |
-| `skip_lint`    | `false`                      | `full-scan`                                     | Skip the Hadolint step                                                               |
-| `skip_secrets` | `false`                      | `full-scan`                                     | Skip the Betterleaks step                                                            |
-| `no_git`       | `false`                      | `secret-scan`                                   | Scan only the working tree, not the git history                                      |
-| `git_depth`    | `0`                          | `full-scan`, `repo-scan`, `secret-scan`         | Clone depth. Keep `0` so Betterleaks can walk the whole history                      |
-| `sbom`         | `false`                      | `full-scan`, `image-scan`, `filesystem-scan`    | Also generate an SBOM                                                                |
-| `sbom_format`  | `cyclonedx`                  | same as `sbom`                                  | `cyclonedx` or `spdx-json`                                                           |
+| Input          | Default                      | Templates                                                    | Notes                                                                                                    |
+| -------------- | ---------------------------- | ------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------- |
+| `image`        | —                            | `full-scan`, `image-scan`                                    | Image reference. Empty skips the image step of `full-scan`; required by `image-scan`                     |
+| `path`         | `$CI_PROJECT_DIR`            | `full-scan`, `filesystem-scan`, `config-scan`, `secret-scan` | Directory to scan. In `full-scan`, the project path scanned for vulnerabilities, secrets and Dockerfiles |
+| `scan_path`    | —                            | `full-scan`                                                  | **Deprecated**, removed in 2.0.0: the former name of `path`. See the note below the table                |
+| `target`       | `$CI_PROJECT_DIR`            | `repo-scan`                                                  | Local path or remote repository URL                                                                      |
+| `dockerfile`   | `$CI_PROJECT_DIR/Dockerfile` | `dockerfile-lint`                                            | The one Dockerfile to lint                                                                               |
+| `dockerfiles`  | `Dockerfile`                 | `full-scan`                                                  | Comma-separated Dockerfiles, relative to `path`                                                          |
+| `scan_mode`    | `fs`                         | `full-scan`                                                  | Trivy source scan mode: `fs` or `repo`                                                                   |
+| `skip_image`   | `false`                      | `full-scan`                                                  | Skip the Trivy image step                                                                                |
+| `skip_lint`    | `false`                      | `full-scan`                                                  | Skip the Hadolint step                                                                                   |
+| `skip_secrets` | `false`                      | `full-scan`                                                  | Skip the Betterleaks step                                                                                |
+| `no_git`       | `false`                      | `secret-scan`                                                | Scan only the working tree, not the git history                                                          |
+| `git_depth`    | `0`                          | `full-scan`, `repo-scan`, `secret-scan`                      | Clone depth. Keep `0` so Betterleaks can walk the whole history                                          |
+| `sbom`         | `false`                      | `full-scan`, `image-scan`, `filesystem-scan`                 | Also generate an SBOM; see [Reports](#-reports) for what it describes                                    |
+| `sbom_format`  | `cyclonedx`                  | same as `sbom`                                               | `cyclonedx` or `spdx-json`                                                                               |
+
+`scan_path` is what `full-scan` called `path` up to 1.4; the name now matches
+the other templates and the GitHub Action. A pipeline that still passes
+`scan_path` scans the same directory as before, and the job log says the input
+is deprecated. When both are set, `path` wins. `scan_path` is removed in
+2.0.0: rename it the next time you touch the include.
 
 ### Trivy
 
@@ -269,15 +278,50 @@ On `secret-scan` and `full-scan`.
 
 ### Report webhook
 
-On every template.
+On every template, except where noted.
 
-| Input                  | Image default | Notes                                        |
-| ---------------------- | ------------- | -------------------------------------------- |
-| `report_url`           | —             | Comma-separated URLs the report is POSTed to |
-| `report_fail_on_error` | `false`       | Fail the job when the upload fails           |
+| Input                  | Image default        | Notes                                                                                  |
+| ---------------------- | -------------------- | -------------------------------------------------------------------------------------- |
+| `report_url`           | —                    | Comma-separated URLs the report is POSTed to                                           |
+| `report_sbom_url`      | same as `report_url` | Comma-separated URLs for the SBOM, instead of `report_url`. Templates with `sbom` only |
+| `report_fail_on_error` | `false`              | Fail the job when an upload fails, the SBOM one included                               |
 
 The bearer token is a secret: set `REPORT_TOKEN` as a masked CI/CD variable,
-see [Secrets](#-secrets).
+see [Secrets](#-secrets). `report_sbom_url` takes a token of its own,
+`REPORT_SBOM_TOKEN`, set the same way: the report token is never sent there.
+To fail on one upload and not on the other, set `REPORT_SBOM_FAIL_ON_ERROR`
+as a CI/CD variable; it has no input.
+
+With `report_url` set, or a `REPORT_URL` CI/CD variable, **every job sends its
+own report** when it finishes, a tripped gate included:
+
+| Template                                                     | Report sent                                             | SBOM sent         |
+| ------------------------------------------------------------ | ------------------------------------------------------- | ----------------- |
+| `full-scan`                                                  | One consolidated envelope, never one per step           | With `sbom: true` |
+| `image-scan`, `filesystem-scan`                              | The envelope of that scan, `ark-report-<template>.json` | With `sbom: true` |
+| `config-scan`, `repo-scan`, `secret-scan`, `dockerfile-lint` | The envelope of that scan, `ark-report-<template>.json` | —                 |
+
+Until component 1.4, which ran scanner image 1.13, only `full-scan` sent
+anything; the other templates accepted `report_url` and stayed silent. A
+collector now has three things to tell apart:
+
+- **Which scan the envelope comes from.** Its `command` field says so. A
+  single scan carries its result in `report`, `full-scan` in `results`.
+- **Report or SBOM.** Every request carries the header `X-Ark-Payload: report`
+  or `X-Ark-Payload: sbom`. Both bodies are `application/json`, and the SBOM
+  is sent bare, CycloneDX or SPDX, with no envelope around it. It goes to
+  `report_url` as well unless `report_sbom_url` names another destination.
+- **Requests without a token.** A job that does not see `REPORT_TOKEN` still
+  sends, without an `Authorization` header. That is what a **protected**
+  variable does to a merge-request job; see [Secrets](#-secrets).
+
+To keep the single scans from sending, set `REPORT_SEND_EACH_SCAN: "false"` as
+a CI/CD variable; it has no input, and `full-scan` ignores it. The other way
+is to give `report_url` only to the includes that should send, instead of
+setting `REPORT_URL` for the whole pipeline.
+
+The image README has the full reference:
+[Report delivery webhook](https://github.com/Tooark/base-images/blob/main/security-scanner/README.md#report-delivery-webhook).
 
 The tool inputs map one to one to the environment variables documented in the
 [image README](https://github.com/Tooark/base-images/blob/main/security-scanner/README.md):
@@ -305,9 +349,22 @@ the job fails.
 
 The envelope is the stable format: tool output wrapped with the scan target,
 the project, the commit and the scanner image that produced it. It is what
-`report_url` receives. `sbom: true` adds `trivy-image.sbom.json` or
-`trivy-filesystem.sbom.json`, and a `trivy_format` other than `json` adds a
-converted copy next to the JSON report, such as `trivy-filesystem.sarif`.
+`report_url` receives. A `trivy_format` other than `json` adds a converted
+copy next to the JSON report, such as `trivy-filesystem.sarif`.
+
+`sbom: true` adds one more file. What it describes depends on the job:
+
+| Job                                                     | SBOM of     | File                         |
+| ------------------------------------------------------- | ----------- | ---------------------------- |
+| `image-scan`                                            | the image   | `trivy-image.sbom.json`      |
+| `filesystem-scan`                                       | source code | `trivy-filesystem.sbom.json` |
+| `full-scan` with an `image`                             | the image   | `trivy-image.sbom.json`      |
+| `full-scan` without the image step                      | source code | `trivy-filesystem.sbom.json` |
+| `full-scan` without the image step, `scan_mode: "repo"` | source code | `trivy-repo.sbom.json`       |
+
+`full-scan` runs without the image step when `image` is empty or `skip_image`
+is `"true"`. Until component 1.4 that combination wrote no SBOM at all, and
+said nothing about it.
 
 ---
 
@@ -330,16 +387,16 @@ variables:
   HADOLINT_FAILURE_LEVEL: "warning"
 
 include:
-  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.4.0/templates/filesystem-scan.yml"
-  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.4.0/templates/dockerfile-lint.yml"
+  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.0/templates/filesystem-scan.yml"
+  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.0/templates/dockerfile-lint.yml"
 ```
 
 The job runs inside the scanner image, so every CI/CD variable reaches the
 tools directly — including the ones that have no input, such as
 `TRIVY_SKIP_DB_UPDATE` or `REPORT_METHOD`.
 
-Two exceptions, both about paths. `scan_path` always carries a value, so it
-wins over a `FULL_SCAN_PATH` variable. And `REPORT_DIR` and `TRIVY_CACHE_DIR`
+Two exceptions, both about paths. The `path` of `full-scan` always carries a
+value, so it wins over a `FULL_SCAN_PATH` variable. And `REPORT_DIR` and `TRIVY_CACHE_DIR`
 are not yours to set as CI/CD variables: the job declares its artifacts and its
 cache against the paths the template chose, through `reports_dir`.
 
@@ -353,10 +410,27 @@ _Settings > CI/CD > Variables_, on the project or the group, and the job picks
 them up:
 
 `TRIVY_TOKEN`, `TRIVY_USERNAME`, `TRIVY_PASSWORD`, `REPORT_TOKEN`,
-`REPORT_HEADERS`, `REPORT_SBOM_URL`, `REPORT_SBOM_TOKEN`.
+`REPORT_HEADERS`, `REPORT_SBOM_TOKEN`, `REPORT_SBOM_HEADERS`.
+
+A URL is not a secret and has an input, `report_url` or `report_sbom_url`. One
+that carries a credential of its own, in the query string for instance, is a
+secret: set it as a masked `REPORT_URL` or `REPORT_SBOM_URL` variable and
+leave the input empty.
+
+**The SBOM upload does not borrow the report credentials.** Without
+`report_sbom_url` the SBOM goes to the report URL with `REPORT_TOKEN` and
+`REPORT_HEADERS`. With `report_sbom_url`, or a `REPORT_SBOM_URL` variable, it
+goes there with `REPORT_SBOM_TOKEN` and `REPORT_SBOM_HEADERS` alone: leave
+them empty and the request carries no `Authorization` and no extra header,
+even when `REPORT_TOKEN` is set. Repeat the token in `REPORT_SBOM_TOKEN` when
+both endpoints accept the same one. Until component 1.4 the report token was
+reused there, so a pipeline that set only the URL now gets a 401 or 403 from
+the SBOM endpoint, and fails if `REPORT_FAIL_ON_ERROR` is `true`.
 
 A **protected** variable only reaches jobs on protected branches and tags; a
-scan on a merge request from a feature branch will not see it.
+scan on a merge request from a feature branch will not see it. With a
+protected `REPORT_TOKEN` and a `REPORT_URL` that is not protected, that job
+sends its report without a token.
 
 Betterleaks redacts every secret in the report by default
 (`betterleaks_redact: "100"`), and the job log prints only rule, file, line and
@@ -372,7 +446,7 @@ by redeclaring the generated job:
 
 ```yaml
 include:
-  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.4.0/templates/image-scan.yml"
+  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.0/templates/image-scan.yml"
     inputs:
       image: "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA"
 
@@ -389,8 +463,8 @@ other in a later job that downloads both:
 
 ```yaml
 include:
-  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.4.0/templates/dockerfile-lint.yml"
-  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.4.0/templates/dockerfile-lint.yml"
+  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.0/templates/dockerfile-lint.yml"
+  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.0/templates/dockerfile-lint.yml"
     inputs:
       job_name: "security:dockerfile-lint-worker"
       dockerfile: "$CI_PROJECT_DIR/docker/Dockerfile.worker"
@@ -401,7 +475,7 @@ include:
 
 ```yaml
 include:
-  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.4.0/templates/secret-scan.yml"
+  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.0/templates/secret-scan.yml"
     inputs:
       rules:
         - if: $CI_PIPELINE_SOURCE == "merge_request_event"
@@ -412,7 +486,7 @@ picked up automatically — or a Betterleaks baseline:
 
 ```yaml
 include:
-  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.4.0/templates/secret-scan.yml"
+  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.0/templates/secret-scan.yml"
     inputs:
       betterleaks_baseline: ".security/betterleaks-baseline.json"
 ```
@@ -422,9 +496,24 @@ warning on the pipeline:
 
 ```yaml
 include:
-  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.4.0/templates/filesystem-scan.yml"
+  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.0/templates/filesystem-scan.yml"
     inputs:
       allow_failure: true
+```
+
+**Send the SBOM to an endpoint of its own.** The two URLs are inputs; the two
+tokens are masked CI/CD variables, `REPORT_TOKEN` and `REPORT_SBOM_TOKEN`,
+under _Settings > CI/CD > Variables_. Set both even when the endpoints accept
+the same token: the SBOM upload never uses the report one.
+
+```yaml
+include:
+  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.0/templates/full-scan.yml"
+    inputs:
+      image: "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA"
+      sbom: true
+      report_url: "https://hub.example.com/api/reports"
+      report_sbom_url: "https://hub.example.com/api/sboms"
 ```
 
 ---
@@ -552,8 +641,8 @@ because that is how the catalog names releases.
 
 [`VERSION`](VERSION) is the single source of truth for both the component
 version and the scanner image tag that every template pins.
-`scripts/check-sync.sh` fails CI if any of them drift, and the release workflow
-refuses a tag that disagrees with `COMPONENT_VERSION`.
+`scripts/check-sync.sh` fails CI if any of them drift. The release workflow
+creates the tag from `COMPONENT_VERSION`, so the two cannot disagree.
 
 Bumping the scanner image is therefore a three-line change: edit `VERSION`,
 run `./scripts/check-sync.sh`, update the pins it flags.
@@ -564,10 +653,13 @@ run `./scripts/check-sync.sh`, update the pins it flags.
 
 ### GitHub Releases
 
-Push a `v*.*.*` tag. [`.github/workflows/release.yml`](https://github.com/Tooark/template-security-scanner/blob/main/.github/workflows/release.yml)
-runs the checks, compares the tag against `VERSION`, creates the release with
-generated notes and moves the floating tags. A remote include can use the tag
-as soon as it exists.
+A release is `COMPONENT_VERSION` reaching `main`; nobody pushes a tag. On
+every push there that touches `VERSION`,
+[`.github/workflows/release.yml`](https://github.com/Tooark/template-security-scanner/blob/main/.github/workflows/release.yml)
+looks for the tag and the release of `v<COMPONENT_VERSION>`. When both exist
+it publishes nothing. When they do not, it runs the checks, tags that commit,
+creates the release with the changelog section as its notes, and moves the
+floating tags. A remote include can use the tag as soon as it exists.
 
 ### GitLab CI/CD Catalog
 
@@ -608,6 +700,14 @@ registry, pass the job credentials as shown in [Recipes](#-recipes).
 `dockerfiles: "a,b,c"`, or include `dockerfile-lint` once per file with
 different `job_name` values.
 
+**A report URL set for the whole pipeline reaches every scan.** Each template
+sends its own report, so a `REPORT_URL` under the global `variables:`, or set
+as a project or group CI/CD variable, makes every job generated here post to
+the collector, and with `REPORT_FAIL_ON_ERROR: "true"` a collector that
+rejects one of them fails that job. Set `REPORT_SEND_EACH_SCAN: "false"` on
+the jobs that should stay quiet, by redeclaring them, or drop the variable and
+pass `report_url` to the includes that should send. `full-scan` always sends.
+
 **The empty `tags` default renders as `tags: []`.** GitLab has no way for an
 input to omit a keyword, and an empty tag list is how you say "any runner".
 Pipelines accept it; only GitLab's editor JSON schema rejects empty arrays
@@ -640,11 +740,13 @@ python3 scripts/validate-templates.py   # structure, input wiring, dead inputs
 ./scripts/check-sync.sh                 # version pins, ARK_IN_* wiring, docs
 python3 scripts/check-examples.py       # examples and README snippets match the templates
 python3 tests/templates.test.py         # the job each template generates, without GitLab
-shellcheck -s bash scripts/*.sh
+shellcheck -s bash scripts/*.sh tests/*.sh
 ```
 
 CI runs all five, lints the script blocks of the templates with ShellCheck,
-runs `actionlint`, and scans this repository with the sister GitHub Action.
+plays the release script out against a throwaway repository
+(`tests/release.test.sh`), runs `actionlint`, and scans this repository with
+the sister GitHub Action.
 
 When adding an input, touch all four places or the checks will say so: the
 template's `spec:inputs`, its `variables:` block as `ARK_IN_*`, the job script

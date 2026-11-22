@@ -2,12 +2,15 @@
 # =============================================================================
 # Guards the invariants that keep the templates and their documentation honest:
 #
-#   1. every template pins exactly the scanner image declared in VERSION;
+#   1. every template pins exactly the scanner image declared in VERSION, and
+#      so does every example that writes the tag out;
 #   2. every ARK_IN_* a template sets is actually consumed downstream;
-#   3. every input a template declares is documented in both READMEs;
-#   4. every copy-paste reference in the docs pins COMPONENT_VERSION, every
-#      mention of the report envelope names REPORT_VERSION, and the onboarding
-#      guide takes all of its versions from VERSION.
+#   3. every input a template declares is documented in both READMEs, and the
+#      onboarding guide counts as many inputs as the templates declare;
+#   4. every copy-paste reference in the docs pins COMPONENT_VERSION, the
+#      changelog has a section for it, every mention of the report envelope
+#      names REPORT_VERSION, and the onboarding guide takes all of its
+#      versions from VERSION.
 #
 # Run it locally with: ./scripts/check-sync.sh
 #
@@ -96,6 +99,21 @@ else
   fail "SUPPORTED-INTEGRATIONS.md does not pair the Current line with ${SCANNER_IMAGE}:${SCANNER_VERSION}"
 fi
 
+# An example that writes the default tag out is one more pin: unchecked, the
+# next bump leaves it showing people an image the templates no longer run.
+examples_ok=1
+while IFS= read -r hit; do
+  [ -n "$hit" ] || continue
+  value="${hit#*scanner_version:}"
+  value="${value%%#*}"
+  value="${value//[\" ]/}"
+  if [ "$value" != "$SCANNER_VERSION" ]; then
+    fail "${hit%%:*} sets scanner_version to '$value', expected '$SCANNER_VERSION'"
+    examples_ok=0
+  fi
+done < <(grep -HE '^[[:space:]]*scanner_version:' examples/*.yml || true)
+[ "$examples_ok" -eq 1 ] && ok "examples/ scanner_version"
+
 # -----------------------------------------------------------------------------
 # Lists the bare variable names passed to ark_apply_inputs, following backslash
 # continuations.
@@ -161,18 +179,18 @@ echo "3. inputs documented in the READMEs"
 # far as they are concerned.
 #
 # The inputs of a template are the four-space keys between `spec:` and `---`.
-inputs="$(
-  for template in templates/*.yml; do
-    awk '
-      /^---/ { exit }
-      /^    [a-z][a-z0-9_]*:[ \t]*$/ {
-        sub(/:.*/, "")
-        gsub(/ /, "")
-        print
-      }
-    ' "$template"
-  done | sort -u
-)"
+template_inputs() {
+  awk '
+    /^---/ { exit }
+    /^    [a-z][a-z0-9_]*:[ \t]*$/ {
+      sub(/:.*/, "")
+      gsub(/ /, "")
+      print
+    }
+  ' "$1"
+}
+
+inputs="$(for template in templates/*.yml; do template_inputs "$template"; done | sort -u)"
 [ -n "$inputs" ] || { echo "could not read any input from templates/" >&2; exit 1; }
 
 for readme in README.md README.pt-BR.md; do
@@ -188,6 +206,25 @@ for readme in README.md README.pt-BR.md; do
   done <<<"$inputs"
   [ "$readme_ok" -eq 1 ] && ok "$readme"
 done
+
+# The guide says how many inputs a template declares, as a range and in prose.
+# Nobody recounts a number in a sentence, so a new input leaves it one short.
+fewest="" most=""
+for template in templates/*.yml; do
+  count="$(template_inputs "$template" | grep -c .)"
+  if [ -z "$fewest" ] || [ "$count" -lt "$fewest" ]; then fewest="$count"; fi
+  if [ -z "$most" ] || [ "$count" -gt "$most" ]; then most="$count"; fi
+done
+
+# The sentence wraps in the source, so line breaks are folded before matching.
+# Both languages must agree: "de 18 a 42 inputs" and "18 to 42 inputs".
+guide_ranges="$(tr -s '[:space:]' ' ' <docs/index.html |
+  grep -oE '[0-9]+ (a|to) [0-9]+ inputs' | sed -E 's/ (a|to) /-/; s/ inputs//' | sort -u | tr '\n' ' ')"
+if [ "${guide_ranges% }" = "${fewest}-${most}" ]; then
+  ok "docs/index.html counts $fewest to $most inputs per template"
+else
+  fail "docs/index.html counts '${guide_ranges% }' inputs per template, templates/ declare ${fewest}-${most}"
+fi
 
 echo
 echo "4. versions quoted in the documentation"
@@ -260,6 +297,21 @@ for file in "${version_ref_files[@]}"; do
     ok "$file"
   fi
 done
+
+# The release workflow publishes COMPONENT_VERSION the moment it reaches main,
+# with the changelog section of that version as the release notes. A bump
+# without its section would fail there, after the merge; it fails here first.
+if grep -qE "^## \[${COMPONENT_VERSION//./\\.}\]( |$)" CHANGELOG.md; then
+  ok "CHANGELOG.md has a section for $COMPONENT_VERSION"
+else
+  fail "CHANGELOG.md has no '## [$COMPONENT_VERSION]' section; the release workflow needs it for the notes"
+fi
+
+if grep -qE "^\[${COMPONENT_VERSION//./\\.}\]: " CHANGELOG.md; then
+  ok "CHANGELOG.md links $COMPONENT_VERSION"
+else
+  fail "CHANGELOG.md has no '[$COMPONENT_VERSION]: <url>' link definition at the end"
+fi
 
 # The envelope version is what a collector behind report_url validates against,
 # so a stale one in the docs sends people to the wrong schema. CHANGELOG.md is

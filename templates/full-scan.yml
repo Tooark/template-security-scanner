@@ -23,7 +23,7 @@ spec:
       default: "ghcr.io/tooark/security-scanner"
       description: "Scanner image repository."
     scanner_version:
-      default: "1.13"
+      default: "1.14"
       description: "Scanner image tag. Pin it; latest makes pipelines non-reproducible."
     allow_failure:
       type: boolean
@@ -52,12 +52,15 @@ spec:
     image:
       default: ""
       description: "Container image to scan. When empty the image step is skipped."
-    scan_path:
+    path:
       default: "$CI_PROJECT_DIR"
       description: "Project path scanned for vulnerabilities, secrets and Dockerfiles."
+    scan_path:
+      default: ""
+      description: "Deprecated: the former name of path, removed in 2.0.0. Used only while path is left at its default."
     dockerfiles:
       default: ""
-      description: "Comma-separated Dockerfiles to lint, relative to scan_path. Image default: Dockerfile."
+      description: "Comma-separated Dockerfiles to lint, relative to path. Image default: Dockerfile."
     scan_mode:
       default: ""
       options: ["", "fs", "repo"]
@@ -78,7 +81,7 @@ spec:
     sbom:
       type: boolean
       default: false
-      description: "Generate an SBOM alongside the image scan."
+      description: "Generate an SBOM: of the image, or of the source code when the image step is skipped."
     sbom_format:
       default: ""
       options: ["", "cyclonedx", "spdx-json"]
@@ -154,6 +157,9 @@ spec:
       default: ""
       options: ["", "true", "false"]
       description: "Fail the job when the webhook upload fails."
+    report_sbom_url:
+      default: ""
+      description: "Comma-separated URLs for the SBOM alone; empty sends it to report_url. Set REPORT_SBOM_TOKEN as a masked CI/CD variable: REPORT_TOKEN is not reused."
     # --- escape hatch ---------------------------------------------------------
     extra_args:
       default: ""
@@ -196,7 +202,8 @@ spec:
     ARK_IN_IMAGE: "$[[ inputs.image ]]"
     ARK_IN_SBOM: "$[[ inputs.sbom ]]"
     ARK_IN_EXTRA_ARGS: "$[[ inputs.extra_args ]]"
-    ARK_IN_FULL_SCAN_PATH: "$[[ inputs.scan_path ]]"
+    ARK_IN_FULL_SCAN_PATH: "$[[ inputs.path ]]"
+    ARK_IN_SCAN_PATH: "$[[ inputs.scan_path ]]"
     ARK_IN_FULL_SCAN_DOCKERFILES: "$[[ inputs.dockerfiles ]]"
     ARK_IN_FULL_SCAN_MODE: "$[[ inputs.scan_mode ]]"
     ARK_IN_FULL_SCAN_SKIP_IMAGE: "$[[ inputs.skip_image ]]"
@@ -222,6 +229,7 @@ spec:
     ARK_IN_BETTERLEAKS_BASELINE: "$[[ inputs.betterleaks_baseline ]]"
     ARK_IN_REPORT_URL: "$[[ inputs.report_url ]]"
     ARK_IN_REPORT_FAIL_ON_ERROR: "$[[ inputs.report_fail_on_error ]]"
+    ARK_IN_REPORT_SBOM_URL: "$[[ inputs.report_sbom_url ]]"
   before_script:
     - |
       echo "[ci-security-scanner] full-scan"
@@ -234,6 +242,17 @@ spec:
           fi
         done
       }
+      # scan_path is what path was called up to 1.4. A pipeline that still
+      # passes it scans the directory it always did, unless it sets path too:
+      # the current name wins over the deprecated one.
+      if [ -n "${ARK_IN_SCAN_PATH:-}" ]; then
+        if [ "${ARK_IN_FULL_SCAN_PATH:-}" = "${CI_PROJECT_DIR:-}" ]; then
+          ARK_IN_FULL_SCAN_PATH="$ARK_IN_SCAN_PATH"
+          echo "  WARNING: the scan_path input is deprecated and will be removed in 2.0.0; rename it to path"
+        else
+          echo "  WARNING: the scan_path input is deprecated, and ignored here because path is set too"
+        fi
+      fi
       ark_apply_inputs \
         FULL_SCAN_PATH FULL_SCAN_DOCKERFILES FULL_SCAN_MODE \
         FULL_SCAN_SKIP_IMAGE FULL_SCAN_SKIP_LINT FULL_SCAN_SKIP_SECRETS \
@@ -242,7 +261,7 @@ spec:
         TRIVY_EXIT_CODE TRIVY_FORMAT TRIVY_SCANNERS TRIVY_TIMEOUT TRIVY_SERVER TRIVY_IGNOREFILE \
         HADOLINT_FAILURE_LEVEL HADOLINT_CONFIG HADOLINT_FORMAT \
         BETTERLEAKS_FAIL_ON_FINDINGS BETTERLEAKS_REDACT BETTERLEAKS_CONFIG BETTERLEAKS_BASELINE \
-        REPORT_URL REPORT_FAIL_ON_ERROR
+        REPORT_URL REPORT_FAIL_ON_ERROR REPORT_SBOM_URL
       if [ -z "${ARK_IN_IMAGE:-}" ] && [ -z "${FULL_SCAN_SKIP_IMAGE:-}" ]; then
         export FULL_SCAN_SKIP_IMAGE="true"
         echo "  no image input -> FULL_SCAN_SKIP_IMAGE=true"

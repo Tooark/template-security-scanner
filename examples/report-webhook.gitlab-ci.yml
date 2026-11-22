@@ -1,0 +1,79 @@
+# =============================================================================
+# Sending the report to a collector.
+# -----------------------------------------------------------------------------
+# Every scan POSTs its ark-report-tools envelope to every URL in `report_url`
+# when it finishes, whether or not a gate failed the job:
+#
+#   POST <report_url>
+#   Content-Type: application/json
+#   X-Ark-Payload: report
+#   Authorization: Bearer <REPORT_TOKEN>      only when the token is set
+#
+# The body is the same JSON the job keeps as an artifact:
+# full-scan-report.json for full-scan, ark-report-<command>.json for the other
+# scans. The two are not shaped alike: full-scan carries its steps under
+# `results`, a single scan carries its one result under `report`. A collector
+# that receives both tells them apart by the `command` field. Any 2xx answer
+# counts as delivered.
+#
+# The URL is an input, so it shows in the rendered pipeline and in the job log.
+# The token is a secret, so it is never an input and never in this file: add
+# REPORT_TOKEN under Settings > CI/CD > Variables, masked. Every job reads it
+# from there.
+#
+# Mind a protected REPORT_TOKEN: it does not reach a pipeline of an unprotected
+# branch, a merge request included. A scan there still sends its report, only
+# without Authorization.
+# =============================================================================
+stages:
+  - test
+
+include:
+  # ---------------------------------------------------------------------------
+  # full-scan sends one consolidated report once every step is done, never one
+  # per step.
+  # ---------------------------------------------------------------------------
+  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.0/templates/full-scan.yml"
+    inputs:
+      # Comma-separated: every URL receives the same body, the same token and
+      # the same headers.
+      report_url: "https://security-hub.example.com/api/reports"
+      # A collector that is down fails the job instead of losing the report
+      # without anyone noticing. The default only logs the failure.
+      report_fail_on_error: "true"
+      rules:
+        - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+  # ---------------------------------------------------------------------------
+  # A single scan sends its own report the same way: `report_url` is all it
+  # takes. This one runs from a pipeline schedule (Build > Pipeline schedules).
+  # ---------------------------------------------------------------------------
+  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.0/templates/secret-scan.yml"
+    inputs:
+      job_name: "security:weekly-secrets"
+      report_url: "https://security-hub.example.com/api/reports"
+      report_fail_on_error: "true"
+      rules:
+        - if: $CI_PIPELINE_SOURCE == "schedule"
+
+# -----------------------------------------------------------------------------
+# What has no input travels as a CI/CD variable, and every job above reads it.
+# -----------------------------------------------------------------------------
+variables:
+  # Extra request headers, one per line, for a collector that expects more than
+  # the bearer token. These two carry no credential, so they can live here; a
+  # header that carries one (an API key, say) makes REPORT_HEADERS a masked
+  # CI/CD variable instead, like the token.
+  REPORT_HEADERS: |
+    X-Project: $CI_PROJECT_PATH
+    X-Environment: production
+
+# -----------------------------------------------------------------------------
+# A URL set for the whole pipeline (a `REPORT_URL` here, or as a project or
+# group CI/CD variable) reaches every scan, not only the ones that pass
+# `report_url`. To keep it and have one scan send nothing, redeclare that job:
+# full-scan ignores the variable and always sends.
+# -----------------------------------------------------------------------------
+# "security:weekly-secrets":
+#   variables:
+#     REPORT_SEND_EACH_SCAN: "false"

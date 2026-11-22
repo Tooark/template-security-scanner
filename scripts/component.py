@@ -72,6 +72,16 @@ def load_all() -> dict[str, Component]:
   return {path.stem: load(path) for path in sorted(TEMPLATES_DIR.glob("*.yml"))}
 
 
+def is_deprecated(definition: dict) -> bool:
+  """Tells whether an input is kept only for the pipelines that still pass it.
+
+  GitLab has no keyword for that, so the description says it: it starts with
+  ``Deprecated``. Reading it from there keeps the template the one place where
+  an input is retired.
+  """
+  return str(definition.get("description", "")).startswith("Deprecated")
+
+
 def _matches_type(value, declared_type: str) -> bool:
   if declared_type == "number" and isinstance(value, bool):
     return False
