@@ -6,6 +6,37 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.5.1] - 2026-11-22
+
+No template changes: every template, input and default is that of 1.5.0, and
+a pipeline behaves the same on either. This release exists so that `v1`,
+`v1.5` and every later version sit on the history `main` now has.
+
+### Changed
+
+- **The commit history of `main` was rewritten on 2026-11-22**, to correct the
+  sign-off trailers of its commit messages. Only messages changed: the files
+  of every commit, its author and its dates are the same. Every commit after
+  the fourth has a new hash, so:
+  - a clone or a fork has to follow: `git fetch origin` and then
+    `git reset --hard origin/main`, or a rebase of local work onto it;
+  - a pipeline that pins a template by commit hash should pin a tag instead.
+    The old commits stay reachable only through the tags listed below.
+- **Where each version tag points.** The content behind every tag is unchanged;
+  what differs is which history the tag belongs to:
+  - `v1.1.0` and `v1.2.0`, with `v1.1` and `v1.2`, moved to the rewritten
+    commits;
+  - `v1.3.0`, `v1.3.1`, `v1.4.0` and `v1.5.0`, with `v1.3` and `v1.4`, stay on
+    their original commits. They are immutable releases, which GitHub does not
+    let anyone move, and those commits are no longer part of `main`;
+  - `v1` and `v1.5` follow this release.
+
+  A remote include or a catalog component pinned to any of these versions needs
+  no change.
+- The compare links of 1.3.0 and of this release, at the end of this file,
+  cross the two histories, so they compare the two tags directly instead of
+  listing commits.
+
 ## [1.5.0] - 2026-11-22
 
 The scanner image moves to 1.14, which changes what a job sends to
@@ -490,11 +521,12 @@ a tag — this content first reached consumers as part of 1.1.0.
   socket mount, unredacted Betterleaks output, and Trivy's secret scanner
   writing findings into an uploaded artifact.
 
-[Unreleased]: https://github.com/Tooark/template-security-scanner/compare/v1.5.0...HEAD
+[Unreleased]: https://github.com/Tooark/template-security-scanner/compare/v1.5.1...HEAD
+[1.5.1]: https://github.com/Tooark/template-security-scanner/compare/v1.5.0..v1.5.1
 [1.5.0]: https://github.com/Tooark/template-security-scanner/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/Tooark/template-security-scanner/compare/v1.3.1...v1.4.0
 [1.3.1]: https://github.com/Tooark/template-security-scanner/compare/v1.3.0...v1.3.1
-[1.3.0]: https://github.com/Tooark/template-security-scanner/compare/v1.2.0...v1.3.0
+[1.3.0]: https://github.com/Tooark/template-security-scanner/compare/v1.2.0..v1.3.0
 [1.2.0]: https://github.com/Tooark/template-security-scanner/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/Tooark/template-security-scanner/releases/tag/v1.1.0
 [1.0.0]: https://github.com/Tooark/template-security-scanner/commit/56263b1c4c085d5ce785ed263194c04609b8f0be

@@ -33,7 +33,7 @@ include:
   # full-scan sends one consolidated report once every step is done, never one
   # per step.
   # ---------------------------------------------------------------------------
-  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.0/templates/full-scan.yml"
+  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.1/templates/full-scan.yml"
     inputs:
       # Comma-separated: every URL receives the same body, the same token and
       # the same headers.
@@ -48,7 +48,7 @@ include:
   # A single scan sends its own report the same way: `report_url` is all it
   # takes. This one runs from a pipeline schedule (Build > Pipeline schedules).
   # ---------------------------------------------------------------------------
-  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.0/templates/secret-scan.yml"
+  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.1/templates/secret-scan.yml"
     inputs:
       job_name: "security:weekly-secrets"
       report_url: "https://security-hub.example.com/api/reports"

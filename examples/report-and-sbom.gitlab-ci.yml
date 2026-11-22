@@ -44,7 +44,7 @@ include:
   # ---------------------------------------------------------------------------
   # The image this pipeline just built: one report, one SBOM.
   # ---------------------------------------------------------------------------
-  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.0/templates/full-scan.yml"
+  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.1/templates/full-scan.yml"
     inputs:
       stage: security
       image: "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA"
@@ -63,7 +63,7 @@ include:
   # The same split for an image that already lives in a registry: image-scan
   # sends its report and its SBOM just as full-scan does.
   # ---------------------------------------------------------------------------
-  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.0/templates/image-scan.yml"
+  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.1/templates/image-scan.yml"
     inputs:
       job_name: "security:published-image"
       stage: security
