@@ -57,8 +57,14 @@ jobs:
       - name: Test the jobs the templates generate
         run: python3 tests/templates.test.py
 
+      # Publishing cannot be taken back, so every state the release script can
+      # find is played out here, against a throwaway repository and a stand-in
+      # gh, long before a merge runs it for real.
+      - name: Test the release script
+        run: bash tests/release.test.sh
+
       - name: ShellCheck
-        run: shellcheck -s bash scripts/*.sh
+        run: shellcheck -s bash scripts/*.sh tests/*.sh
 
       # The script blocks inside the templates are shell too, and they run in
       # every consuming pipeline. sh, not bash: nothing in them may depend on
