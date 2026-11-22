@@ -80,7 +80,7 @@ Works on gitlab.com and on any instance that can reach
 
 ```yaml
 include:
-  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.0/templates/full-scan.yml"
+  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.1/templates/full-scan.yml"
 ```
 
 That one include adds a `security:full-scan` job to the `test` stage. With no
@@ -92,7 +92,7 @@ To include the container image the pipeline has built:
 
 ```yaml
 include:
-  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.0/templates/full-scan.yml"
+  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.1/templates/full-scan.yml"
     inputs:
       stage: test
       image: "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA"
@@ -108,7 +108,7 @@ has published a version to yours:
 
 ```yaml
 include:
-  - component: $CI_SERVER_FQDN/tooark/ci-security-scanner/full-scan@1.5.0
+  - component: $CI_SERVER_FQDN/tooark/ci-security-scanner/full-scan@1.5.1
     inputs:
       image: "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA"
       trivy_severity: "CRITICAL,HIGH"
@@ -387,8 +387,8 @@ variables:
   HADOLINT_FAILURE_LEVEL: "warning"
 
 include:
-  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.0/templates/filesystem-scan.yml"
-  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.0/templates/dockerfile-lint.yml"
+  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.1/templates/filesystem-scan.yml"
+  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.1/templates/dockerfile-lint.yml"
 ```
 
 The job runs inside the scanner image, so every CI/CD variable reaches the
@@ -446,7 +446,7 @@ by redeclaring the generated job:
 
 ```yaml
 include:
-  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.0/templates/image-scan.yml"
+  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.1/templates/image-scan.yml"
     inputs:
       image: "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA"
 
@@ -463,8 +463,8 @@ other in a later job that downloads both:
 
 ```yaml
 include:
-  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.0/templates/dockerfile-lint.yml"
-  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.0/templates/dockerfile-lint.yml"
+  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.1/templates/dockerfile-lint.yml"
+  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.1/templates/dockerfile-lint.yml"
     inputs:
       job_name: "security:dockerfile-lint-worker"
       dockerfile: "$CI_PROJECT_DIR/docker/Dockerfile.worker"
@@ -475,7 +475,7 @@ include:
 
 ```yaml
 include:
-  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.0/templates/secret-scan.yml"
+  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.1/templates/secret-scan.yml"
     inputs:
       rules:
         - if: $CI_PIPELINE_SOURCE == "merge_request_event"
@@ -486,7 +486,7 @@ picked up automatically — or a Betterleaks baseline:
 
 ```yaml
 include:
-  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.0/templates/secret-scan.yml"
+  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.1/templates/secret-scan.yml"
     inputs:
       betterleaks_baseline: ".security/betterleaks-baseline.json"
 ```
@@ -496,7 +496,7 @@ warning on the pipeline:
 
 ```yaml
 include:
-  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.0/templates/filesystem-scan.yml"
+  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.1/templates/filesystem-scan.yml"
     inputs:
       allow_failure: true
 ```
@@ -508,7 +508,7 @@ the same token: the SBOM upload never uses the report one.
 
 ```yaml
 include:
-  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.0/templates/full-scan.yml"
+  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.1/templates/full-scan.yml"
     inputs:
       image: "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA"
       sbom: true

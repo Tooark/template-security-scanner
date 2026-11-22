@@ -168,7 +168,7 @@ the scanner image tag that every template pins, and the report envelope that
 image writes:
 
 ```text
-COMPONENT_VERSION=1.5.0
+COMPONENT_VERSION=1.5.1
 SCANNER_IMAGE=ghcr.io/tooark/security-scanner
 SCANNER_VERSION=1.14
 REPORT_SCHEMA=ark-report-tools
