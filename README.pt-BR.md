@@ -1,7 +1,9 @@
 <!--
-  Links para arquivos fora de templates/, LICENSE e VERSION são absolutos de
-  propósito: o espelho do CI/CD Catalog (catalog-mirror/) sincroniza este README
-  sem esses arquivos, e links relativos quebram na página do catálogo.
+  Links para arquivos fora de templates/, examples/, LICENSE e VERSION são
+  absolutos de propósito, como no README.md: é aquele que o espelho do CI/CD
+  Catalog (catalog-mirror/) sincroniza, sem os outros arquivos, e links
+  relativos quebram na página do catálogo. Os marcadores "github-only" de lá
+  não existem aqui, porque este arquivo não vai para o espelho.
 
   Todo título de seção começa com um ícone, e a âncora então começa com um
   hífen: "## 🔧 Inputs" vira #-inputs. Duas regras mantêm essas âncoras iguais
@@ -81,7 +83,7 @@ Funciona no gitlab.com e em qualquer instância que alcance
 
 ```yaml
 include:
-  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.1/templates/full-scan.yml"
+  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.2/templates/full-scan.yml"
 ```
 
 Esse único include adiciona um job `security:full-scan` ao stage `test`. Sem
@@ -94,7 +96,7 @@ Para incluir a imagem que o pipeline construiu:
 
 ```yaml
 include:
-  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.1/templates/full-scan.yml"
+  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.2/templates/full-scan.yml"
     inputs:
       stage: test
       image: "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA"
@@ -111,11 +113,14 @@ publicar uma versão na sua:
 
 ```yaml
 include:
-  - component: $CI_SERVER_FQDN/tooark/ci-security-scanner/full-scan@1.5.1
+  - component: $CI_SERVER_FQDN/tooark/ci-security-scanner/full-scan@1.5.2
     inputs:
       image: "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA"
       trivy_severity: "CRITICAL,HIGH"
 ```
+
+A página desse catálogo mostra o README em inglês com cada include já escrito
+como componente do espelho, e os exemplos abaixo publicados ao lado dele.
 
 Pipelines completos, prontos para copiar, ficam em
 [`examples/`](https://github.com/Tooark/template-security-scanner/tree/main/examples):
@@ -392,8 +397,8 @@ variables:
   HADOLINT_FAILURE_LEVEL: "warning"
 
 include:
-  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.1/templates/filesystem-scan.yml"
-  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.1/templates/dockerfile-lint.yml"
+  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.2/templates/filesystem-scan.yml"
+  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.2/templates/dockerfile-lint.yml"
 ```
 
 O job roda dentro da imagem do scanner, então toda variável de CI/CD chega
@@ -450,7 +455,7 @@ as credenciais do próprio job, redeclarando o job gerado:
 
 ```yaml
 include:
-  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.1/templates/image-scan.yml"
+  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.2/templates/image-scan.yml"
     inputs:
       image: "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA"
 
@@ -467,8 +472,8 @@ sobrescrevam num job posterior que baixe ambos:
 
 ```yaml
 include:
-  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.1/templates/dockerfile-lint.yml"
-  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.1/templates/dockerfile-lint.yml"
+  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.2/templates/dockerfile-lint.yml"
+  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.2/templates/dockerfile-lint.yml"
     inputs:
       job_name: "security:dockerfile-lint-worker"
       dockerfile: "$CI_PROJECT_DIR/docker/Dockerfile.worker"
@@ -479,7 +484,7 @@ include:
 
 ```yaml
 include:
-  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.1/templates/secret-scan.yml"
+  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.2/templates/secret-scan.yml"
     inputs:
       rules:
         - if: $CI_PIPELINE_SOURCE == "merge_request_event"
@@ -490,7 +495,7 @@ include:
 
 ```yaml
 include:
-  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.1/templates/secret-scan.yml"
+  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.2/templates/secret-scan.yml"
     inputs:
       betterleaks_baseline: ".security/betterleaks-baseline.json"
 ```
@@ -500,7 +505,7 @@ em um aviso no pipeline:
 
 ```yaml
 include:
-  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.1/templates/filesystem-scan.yml"
+  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.2/templates/filesystem-scan.yml"
     inputs:
       allow_failure: true
 ```
@@ -513,7 +518,7 @@ relatório.
 
 ```yaml
 include:
-  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.1/templates/full-scan.yml"
+  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.2/templates/full-scan.yml"
     inputs:
       image: "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA"
       sbom: true
@@ -677,6 +682,8 @@ Configure o projeto-espelho descrito em
 [`catalog-mirror/`](https://github.com/Tooark/template-security-scanner/tree/main/catalog-mirror):
 ele consulta os releases daqui num agendamento, copia o `templates/` de cada
 release que ainda não publicou e publica cada um no catálogo da sua instância.
+O README em inglês e o `examples/` vão junto, reescritos para que cada include
+aponte para o componente do espelho em vez do arquivo remoto.
 
 ---
 
@@ -757,8 +764,9 @@ shellcheck -s bash scripts/*.sh tests/*.sh
 
 O CI roda os cinco, passa os blocos de script dos templates pelo ShellCheck,
 exercita o script de release contra um repositório descartável
-(`tests/release.test.sh`), roda o `actionlint` e escaneia este repositório com
-a GitHub Action irmã.
+(`tests/release.test.sh`), roda a reescrita que o espelho do catálogo aplica
+ao README em inglês e aos exemplos (`tests/catalog-mirror.test.py`), roda o
+`actionlint` e escaneia este repositório com a GitHub Action irmã.
 
 Ao adicionar um input, mexa nos quatro lugares ou as checagens vão avisar: o
 `spec:inputs` do template, o bloco `variables:` como `ARK_IN_*`, o script do job

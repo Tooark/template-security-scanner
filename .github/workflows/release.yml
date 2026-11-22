@@ -84,6 +84,12 @@ jobs:
         if: steps.plan.outputs.state != 'published'
         run: bash tests/release.test.sh
 
+      # The README and the examples of this commit are what every catalog
+      # mirror publishes for the version, and a mirror never goes back to one.
+      - name: Test the catalog mirror rewrite
+        if: steps.plan.outputs.state != 'published'
+        run: python3 tests/catalog-mirror.test.py
+
       - name: ShellCheck
         if: steps.plan.outputs.state != 'published'
         run: shellcheck -s bash scripts/*.sh tests/*.sh

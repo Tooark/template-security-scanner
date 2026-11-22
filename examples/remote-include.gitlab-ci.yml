@@ -1,11 +1,16 @@
 # =============================================================================
-# A complete setup with `include: remote:`: build the image, scan everything on
-# the default branch, and give merge requests a fast secrets-only job.
+# A complete setup: build the image, scan everything on the default branch, and
+# give merge requests a fast secrets-only job.
 # -----------------------------------------------------------------------------
-# Works on gitlab.com and on any self-hosted instance that can reach
-# raw.githubusercontent.com. No catalog needed.
+# github-only:start
+# Uses `include: remote:`, which works on gitlab.com and on any self-hosted
+# instance that can reach raw.githubusercontent.com. No catalog needed. The
+# copy of this file that a catalog mirror publishes names the components of
+# that mirror instead, and comes without the lines between these two markers.
 #
-# Always pin a tag. Pointing at `main` means a pipeline can change under you.
+# github-only:end
+# Always pin a version. Pointing at `main` means a pipeline can change under
+# you.
 # =============================================================================
 stages:
   - build
@@ -28,7 +33,7 @@ include:
   # ---------------------------------------------------------------------------
   # Everything at once: image + source + secrets + Dockerfile lint.
   # ---------------------------------------------------------------------------
-  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.1/templates/full-scan.yml"
+  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.2/templates/full-scan.yml"
     inputs:
       stage: security
       image: "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA"
@@ -44,7 +49,7 @@ include:
   # A second, faster job that runs on merge requests only: secrets, no image.
   # A different job_name is what lets a template be included more than once.
   # ---------------------------------------------------------------------------
-  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.1/templates/secret-scan.yml"
+  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.2/templates/secret-scan.yml"
     inputs:
       job_name: "security:secrets-mr"
       stage: security

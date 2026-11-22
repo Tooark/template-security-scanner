@@ -46,6 +46,7 @@ CHANGELOG.md.
 - [ ] `./scripts/check-sync.sh` passes
 - [ ] `python3 scripts/check-examples.py` passes
 - [ ] `python3 tests/templates.test.py` passes, with a case for any new behaviour
+- [ ] `python3 tests/catalog-mirror.test.py` passes (if `README.md`, `examples/` or `catalog-mirror/` changed)
 - [ ] `shellcheck -s bash scripts/*.sh tests/*.sh` passes
 - [ ] Version pins were changed only through `VERSION`
 - [ ] `README.md` and `README.pt-BR.md` updated **and in sync** (if docs changed)

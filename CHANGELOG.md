@@ -6,6 +6,53 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.5.2] - 2026-11-22
+
+No template changes: every template, input and default is that of 1.5.1, and
+a pipeline behaves the same on either. This release corrects what a catalog
+mirror publishes next to the templates, and a mirror has to fetch its
+pipeline file again to get it.
+
+### Changed
+
+- **Catalog mirror: the page of the catalog now shows the include of the
+  mirror.** It showed this README as GitHub has it, so someone who found the
+  component in their own catalog was told to include it from
+  `raw.githubusercontent.com`, and sent to GitHub for the examples. `sync` now
+  copies `examples/` too and rewrites both as it commits a release:
+  - a remote include of that release becomes
+    `component: $CI_SERVER_FQDN/<path of the mirror>/<name>@<version>`, with
+    its `inputs:` untouched;
+  - a component under `tooark/ci-security-scanner`, the path the documentation
+    assumes for a mirror, moves to the path the mirror really has;
+  - a link to `examples/` on GitHub points at the copy the mirror publishes,
+    at the tag of that version;
+  - what is only true of the remote include is left out.
+
+  **Re-fetch `catalog-mirror/.gitlab-ci.yml` to get this**
+  (`catalog-mirror/README.md`, "Updating the mirror's own pipeline"); a mirror
+  that keeps the old file goes on publishing the README as it is here.
+  Versions already in a catalog keep the files they were published with, so
+  the page changes with the first release published after the update.
+  Templates, inputs and component paths are the same: no pipeline has to
+  change.
+- `README.md` and `examples/remote-include.gitlab-ci.yml` mark what the mirror
+  leaves out with `github-only:start` and `github-only:end` comments. They are
+  invisible in the rendered README and two comment lines in the example.
+- The comments of `examples/catalog-component.gitlab-ci.yml` and
+  `examples/quick-start.gitlab-ci.yml` no longer name a path or say "tag", so
+  that they read the same in a mirror, where the path is another and the
+  include carries a version.
+
+### Added
+
+- `tests/catalog-mirror.test.py` runs the rewrite of the mirror, read out of
+  its pipeline file, on this README and on the examples. CI runs it on every
+  change, a second time in the Alpine image the `sync` job uses, and fails on
+  an include that did not follow, a marker without its pair, or a link to an
+  example the mirror does not have. The release workflow runs it too, before
+  it tags.
+
 ## [1.5.1] - 2026-11-22
 
 No template changes: every template, input and default is that of 1.5.0, and
@@ -521,7 +568,8 @@ a tag — this content first reached consumers as part of 1.1.0.
   socket mount, unredacted Betterleaks output, and Trivy's secret scanner
   writing findings into an uploaded artifact.
 
-[Unreleased]: https://github.com/Tooark/template-security-scanner/compare/v1.5.1...HEAD
+[Unreleased]: https://github.com/Tooark/template-security-scanner/compare/v1.5.2...HEAD
+[1.5.2]: https://github.com/Tooark/template-security-scanner/compare/v1.5.1...v1.5.2
 [1.5.1]: https://github.com/Tooark/template-security-scanner/compare/v1.5.0..v1.5.1
 [1.5.0]: https://github.com/Tooark/template-security-scanner/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/Tooark/template-security-scanner/compare/v1.3.1...v1.4.0

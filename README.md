@@ -1,7 +1,21 @@
 <!--
-  Links to files outside templates/, LICENSE and VERSION are absolute on
-  purpose: the CI/CD Catalog mirror (catalog-mirror/) syncs this README without
+  This file is also the page of the CI/CD Catalog: the mirror
+  (catalog-mirror/) syncs it with templates/, examples/, LICENSE and VERSION,
+  and rewrites it on the way in. Three things here exist for that copy.
+
+  Links to any other file are absolute on purpose: the mirror does not have
   those files, so relative links break on the catalog page.
+
+  A remote include of the current tag becomes the component of the mirror
+  there, and a link to examples/ on GitHub one to the examples the mirror
+  publishes. Write both the way the rest of the file does and they follow.
+
+  The lines from a "github-only:start" comment to the next "github-only:end"
+  are left out of that copy. Wrap in them what is only true of the remote
+  include, and check that the text around still reads well without them. A
+  marker is a comment alone on its line, and every start needs its end: the
+  mirror drops everything up to the next one. tests/catalog-mirror.test.py
+  runs the rewrite on this file.
 
   Every section heading starts with an icon, and the anchor then starts with a
   hyphen: "## 🔧 Inputs" is #-inputs. Two rules keep those anchors the same on
@@ -73,14 +87,18 @@ written for readers who know software development but not CI. Source in
 
 ## 🚀 Quick start
 
+<!-- github-only:start -->
+
 ### Remote include
 
 Works on gitlab.com and on any instance that can reach
 `raw.githubusercontent.com`. No catalog required.
 
+<!-- github-only:end -->
+
 ```yaml
 include:
-  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.1/templates/full-scan.yml"
+  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.2/templates/full-scan.yml"
 ```
 
 That one include adds a `security:full-scan` job to the `test` stage. With no
@@ -92,13 +110,15 @@ To include the container image the pipeline has built:
 
 ```yaml
 include:
-  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.1/templates/full-scan.yml"
+  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.2/templates/full-scan.yml"
     inputs:
       stage: test
       image: "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA"
       trivy_severity: "CRITICAL,HIGH"
       hadolint_failure_level: "warning"
 ```
+
+<!-- github-only:start -->
 
 ### CI/CD Catalog
 
@@ -108,11 +128,16 @@ has published a version to yours:
 
 ```yaml
 include:
-  - component: $CI_SERVER_FQDN/tooark/ci-security-scanner/full-scan@1.5.1
+  - component: $CI_SERVER_FQDN/tooark/ci-security-scanner/full-scan@1.5.2
     inputs:
       image: "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA"
       trivy_severity: "CRITICAL,HIGH"
 ```
+
+The page of that catalog shows this README with every include already written
+as a component of the mirror, and the examples below published next to it.
+
+<!-- github-only:end -->
 
 Complete pipelines, ready to copy, live in
 [`examples/`](https://github.com/Tooark/template-security-scanner/tree/main/examples):
@@ -387,8 +412,8 @@ variables:
   HADOLINT_FAILURE_LEVEL: "warning"
 
 include:
-  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.1/templates/filesystem-scan.yml"
-  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.1/templates/dockerfile-lint.yml"
+  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.2/templates/filesystem-scan.yml"
+  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.2/templates/dockerfile-lint.yml"
 ```
 
 The job runs inside the scanner image, so every CI/CD variable reaches the
@@ -446,7 +471,7 @@ by redeclaring the generated job:
 
 ```yaml
 include:
-  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.1/templates/image-scan.yml"
+  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.2/templates/image-scan.yml"
     inputs:
       image: "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA"
 
@@ -463,8 +488,8 @@ other in a later job that downloads both:
 
 ```yaml
 include:
-  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.1/templates/dockerfile-lint.yml"
-  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.1/templates/dockerfile-lint.yml"
+  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.2/templates/dockerfile-lint.yml"
+  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.2/templates/dockerfile-lint.yml"
     inputs:
       job_name: "security:dockerfile-lint-worker"
       dockerfile: "$CI_PROJECT_DIR/docker/Dockerfile.worker"
@@ -475,7 +500,7 @@ include:
 
 ```yaml
 include:
-  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.1/templates/secret-scan.yml"
+  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.2/templates/secret-scan.yml"
     inputs:
       rules:
         - if: $CI_PIPELINE_SOURCE == "merge_request_event"
@@ -486,7 +511,7 @@ picked up automatically — or a Betterleaks baseline:
 
 ```yaml
 include:
-  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.1/templates/secret-scan.yml"
+  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.2/templates/secret-scan.yml"
     inputs:
       betterleaks_baseline: ".security/betterleaks-baseline.json"
 ```
@@ -496,7 +521,7 @@ warning on the pipeline:
 
 ```yaml
 include:
-  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.1/templates/filesystem-scan.yml"
+  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.2/templates/filesystem-scan.yml"
     inputs:
       allow_failure: true
 ```
@@ -508,7 +533,7 @@ the same token: the SBOM upload never uses the report one.
 
 ```yaml
 include:
-  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.1/templates/full-scan.yml"
+  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.2/templates/full-scan.yml"
     inputs:
       image: "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA"
       sbom: true
@@ -668,7 +693,8 @@ GitHub repository cannot be published to it directly. Set up the mirror project
 described in [`catalog-mirror/`](https://github.com/Tooark/template-security-scanner/tree/main/catalog-mirror):
 it polls the releases here on a schedule, copies `templates/` across for every
 release it has not published yet, and publishes each one to the catalog of
-your instance.
+your instance. This README and `examples/` go with them, rewritten so that
+every include names the component of the mirror instead of the remote file.
 
 ---
 
@@ -745,8 +771,9 @@ shellcheck -s bash scripts/*.sh tests/*.sh
 
 CI runs all five, lints the script blocks of the templates with ShellCheck,
 plays the release script out against a throwaway repository
-(`tests/release.test.sh`), runs `actionlint`, and scans this repository with
-the sister GitHub Action.
+(`tests/release.test.sh`), runs the rewrite the catalog mirror applies to this
+README and to the examples (`tests/catalog-mirror.test.py`), runs `actionlint`,
+and scans this repository with the sister GitHub Action.
 
 When adding an input, touch all four places or the checks will say so: the
 template's `spec:inputs`, its `variables:` block as `ARK_IN_*`, the job script

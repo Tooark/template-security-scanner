@@ -923,9 +923,7 @@
 
         <p class="eyebrow">Onboarding · Tooark</p>
         <h1 lang="pt-BR">
-          template-security-scanner<br /><span class="accent"
-            >por dentro</span
-          >
+          template-security-scanner<br /><span class="accent">por dentro</span>
         </h1>
         <h1 lang="en">
           template-security-scanner<br /><span class="accent"
@@ -1743,8 +1741,8 @@
           <div lang="pt-BR">
             <h2>Mapa do repositório</h2>
             <p class="deck">
-              Uns cinquenta arquivos; os que importam cabem em cinco grupos
-              com propósitos bem distintos.
+              Uns cinquenta arquivos; os que importam cabem em cinco grupos com
+              propósitos bem distintos.
             </p>
 
             <div class="tree">
@@ -1808,7 +1806,9 @@
               </div>
               <div class="row">
                 <span class="f">scripts/component.py</span
-                ><span class="d">O leitor de templates que os dois acima usam</span>
+                ><span class="d"
+                  >O leitor de templates que os dois acima usam</span
+                >
               </div>
               <div class="row">
                 <span class="f">scripts/render-docs.sh</span
@@ -1827,8 +1827,7 @@
               <div class="row">
                 <span class="f">.github/workflows/release.yml</span
                 ><span class="d"
-                  >Publica o release quando o VERSION traz uma versão
-                  nova</span
+                  >Publica o release quando o VERSION traz uma versão nova</span
                 >
               </div>
               <div class="row">
@@ -1907,8 +1906,7 @@
               <div class="row">
                 <span class="f dim">templates/*.yml</span
                 ><span class="d"
-                  >The other six: one template per command, same
-                  structure</span
+                  >The other six: one template per command, same structure</span
                 >
               </div>
 
@@ -1978,8 +1976,7 @@
               <div class="row">
                 <span class="f">.github/workflows/release.yml</span
                 ><span class="d"
-                  >Publishes the release when VERSION brings a new
-                  version</span
+                  >Publishes the release when VERSION brings a new version</span
                 >
               </div>
               <div class="row">
@@ -2268,7 +2265,9 @@
               <code>array</code>, define a versão mínima.
             </p>
 
-            <h3><code>before_script</code> — exportar só o que não está vazio</h3>
+            <h3>
+              <code>before_script</code> — exportar só o que não está vazio
+            </h3>
 
             <pre><code><span class="k">ark_apply_inputs</span>() {
   <span class="k">for</span> _name <span class="k">in</span> "$@"; <span class="k">do</span>
@@ -2508,8 +2507,8 @@ ark-tools "$@"</code></pre>
                 <strong>O runner guarda o que sobra.</strong> Os relatórios
                 viram artifacts e o banco do Trivy volta para o cache, tenha o
                 job passado ou não: os dois são declarados com
-                <code>when: always</code>, porque um gate fechado falha o job
-                de propósito.
+                <code>when: always</code>, porque um gate fechado falha o job de
+                propósito.
               </li>
             </ol>
 
@@ -2593,8 +2592,7 @@ ark-tools "$@"</code></pre>
                 >, under the names the image reads.
               </li>
               <li>
-                <strong
-                  ><code>script</code> calls <code>ark-tools</code></strong
+                <strong><code>script</code> calls <code>ark-tools</code></strong
                 >, in the same shell: the runner joins the two blocks into one
                 script. The exit code decides the job — non-zero means a gate
                 tripped.
@@ -2676,11 +2674,14 @@ ark-tools "$@"</code></pre>
               cria na sua instância; nada aqui o executa. O job
               <code>sync</code> consulta os releases de
               <code>UPSTREAM_REPO</code>
-              (<code>Tooark/template-security-scanner</code>) em um
-              agendamento semanal; para cada release que ainda não publicou, do
-              mais antigo ao mais novo, copia
-              <code class="path">templates/</code>, <code>README.md</code>,
-              <code>LICENSE</code> e <code>VERSION</code>, faz o commit e
+              (<code>Tooark/template-security-scanner</code>) em um agendamento
+              semanal; para cada release que ainda não publicou, do mais antigo
+              ao mais novo, copia
+              <code class="path">templates/</code>,
+              <code class="path">examples/</code>, <code>README.md</code>,
+              <code>LICENSE</code> e <code>VERSION</code>, reescreve o README e
+              os exemplos para que cada include aponte para o componente do
+              próprio espelho em vez do arquivo no GitHub, faz o commit e
               empurra uma tag sem o <code>v</code> — a versão nua que o catálogo
               espera. Cada tag dispara o job <code>release</code>, que a publica
               no catálogo. Não há tags flutuantes no espelho: o catálogo resolve
@@ -2723,14 +2724,16 @@ ark-tools "$@"</code></pre>
               (<code>Tooark/template-security-scanner</code>) on a weekly
               schedule; for every release it has not published yet, oldest
               first, it copies
-              <code class="path">templates/</code>, <code>README.md</code>,
-              <code>LICENSE</code> and <code>VERSION</code>, commits and pushes
-              a tag without the <code>v</code> — the bare version the catalog
+              <code class="path">templates/</code>,
+              <code class="path">examples/</code>, <code>README.md</code>,
+              <code>LICENSE</code> and <code>VERSION</code>, rewrites the README
+              and the examples so that every include names the component of the
+              mirror itself instead of the file on GitHub, commits and pushes a
+              tag without the <code>v</code> — the bare version the catalog
               expects. Each tag starts the <code>release</code> job, which
               publishes it to the catalog. The mirror has no floating tags: the
               catalog itself resolves <code>@{{COMPONENT_MINOR}}</code> and
-              <code>@{{COMPONENT_MAJOR}}</code> to the newest version
-              published.
+              <code>@{{COMPONENT_MAJOR}}</code> to the newest version published.
             </p>
 
             <p>
@@ -2920,9 +2923,7 @@ REPORT_VERSION={{REPORT_VERSION}}</code></pre>
                 actually read, and every <code>ARK_IN_*</code> read was
                 declared.
               </li>
-              <li>
-                Every input of a template is documented in both READMEs.
-              </li>
+              <li>Every input of a template is documented in both READMEs.</li>
               <li>
                 Every copy-paste reference in the docs and the examples pins
                 <code>COMPONENT_VERSION</code>, and every mention of the report
@@ -3057,9 +3058,9 @@ shellcheck -s bash scripts/*.sh tests/*.sh</code></pre>
                 >procura a tag e o release de
                 <code>v&lt;COMPONENT_VERSION&gt;</code></strong
               >. Se os dois existem, não publica nada. Se não existem, roda de
-              novo as cinco validações locais, cria a tag naquele commit, cria
-              o GitHub Release com a seção do changelog como notas e move as
-              tags flutuantes. Fazer o merge do PR que sobe o
+              novo as cinco validações locais, cria a tag naquele commit, cria o
+              GitHub Release com a seção do changelog como notas e move as tags
+              flutuantes. Fazer o merge do PR que sobe o
               <code>COMPONENT_VERSION</code> é, portanto, o release.
             </p>
 
@@ -3145,8 +3146,8 @@ shellcheck -s bash scripts/*.sh tests/*.sh</code></pre>
             <p>
               <strong>Job <code>self-scan</code>:</strong> since the repository
               lives on GitHub, what scans it is the sister Action,
-              <code>Tooark/action-security-scanner</code> — the same image and the
-              same <code>ark-tools</code> commands as the templates here. It
+              <code>Tooark/action-security-scanner</code> — the same image and
+              the same <code>ark-tools</code> commands as the templates here. It
               guards this repository; what tests the templates is
               <code>tests/templates.test.py</code>.
             </p>
@@ -3640,9 +3641,9 @@ shellcheck -s bash scripts/*.sh tests/*.sh</code></pre>
               <span class="label">Guia irmão · GitHub Actions</span>
               <h3>Seu pipeline está no GitHub?</h3>
               <p>
-                Os mesmos scans, com os mesmos nomes de input, existem como
-                uma GitHub Action. O guia de lá percorre aquele repositório
-                do mesmo jeito que este percorre os templates.
+                Os mesmos scans, com os mesmos nomes de input, existem como uma
+                GitHub Action. O guia de lá percorre aquele repositório do mesmo
+                jeito que este percorre os templates.
               </p>
               <ul class="facts">
                 <li>
@@ -3787,8 +3788,8 @@ shellcheck -s bash scripts/*.sh tests/*.sh</code></pre>
               <h3>Is your pipeline on GitHub?</h3>
               <p>
                 The same scans, with the same input names, ship as a GitHub
-                Action. Its guide walks that repository the way this one
-                walks the templates.
+                Action. Its guide walks that repository the way this one walks
+                the templates.
               </p>
               <ul class="facts">
                 <li>

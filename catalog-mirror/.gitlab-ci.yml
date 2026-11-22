@@ -3,14 +3,18 @@
 # GitLab CI/CD Catalog.
 # -----------------------------------------------------------------------------
 # GitHub stays the source of truth: Tooark/template-security-scanner. This
-# project holds a copy of templates/ and republishes it whenever upstream cuts
-# a release. Nothing is authored here.
+# project holds a copy of templates/, of examples/ and of the README, and
+# republishes them whenever upstream cuts a release. Nothing is authored here.
+#
+# The README and the examples are written for GitHub, where a pipeline reaches
+# a template through `include: remote:`. `sync` rewrites them on the way in, so
+# that the page of the catalog shows the include of this project instead.
 #
 # Two kinds of pipeline run, and nothing else does:
 #
 #   default branch   `sync` asks GitHub for the releases of upstream and, for
 #                    every one that has no tag here yet, oldest first, commits
-#                    its templates/ and pushes its tag. Started by the weekly
+#                    its files and pushes its tag. Started by the weekly
 #                    schedule, by "Run pipeline", or by a push to the branch.
 #   version tag      pushed by `sync`, one per release: `release` publishes it
 #                    to the catalog.
@@ -43,8 +47,71 @@ variables:
   UPSTREAM_DOWNLOAD: "https://github.com"
   # Files replaced wholesale on each sync. Everything else in this project
   # (starting with this file) is local and survives.
-  SYNCED_PATHS: "templates README.md LICENSE VERSION"
+  SYNCED_PATHS: "templates examples README.md LICENSE VERSION"
   GIT_DEPTH: "0"
+
+# -----------------------------------------------------------------------------
+# Turns the README.md and the examples/ of one release, in the working
+# directory, from the copy GitHub shows into the one this project publishes:
+#
+#   $1  the upstream tag     v1.2.3
+#   $2  the catalog version  1.2.3
+#
+#   - the lines from a `github-only:start` marker to the next `github-only:end`
+#     are dropped. Upstream wraps in them what holds for its own copy alone,
+#     such as the heading that introduces the remote include. A marker is a
+#     line of its own: `<!-- github-only:start -->` in Markdown,
+#     `# github-only:start` in YAML;
+#   - a remote include of that tag becomes a component of this project, at
+#     that version;
+#   - a component under the path upstream assumes for a mirror moves to the
+#     path this project really has;
+#   - a link to the examples on GitHub points at the ones published here.
+#
+# Only an include of a template this release carries is touched, so a snippet
+# that also includes something else keeps it. A release from before the
+# markers has none, and nothing is dropped from it. Its includes are rewritten
+# whatever upstream was called at the time; its links to the examples only if
+# it already went by UPSTREAM_REPO, and stay on GitHub otherwise.
+#
+# The values spliced into the sed program are a tag, a version, a project path
+# and a URL. None of them can hold the `#` that delimits the expressions, nor
+# an `&` or a backslash, which sed would read in a replacement.
+#
+# Kept apart from the job so that upstream can run it: its
+# tests/catalog-mirror.test.py feeds these very lines the README and the
+# examples of every change.
+# -----------------------------------------------------------------------------
+.rewrite-for-catalog: &rewrite_for_catalog
+  - |
+    rewrite_for_catalog() {
+      rewrite_names=""
+      for rewrite_template in templates/*.yml; do
+        [ -f "$rewrite_template" ] || continue
+        rewrite_name="${rewrite_template##*/}"
+        rewrite_names="${rewrite_names:+$rewrite_names|}${rewrite_name%.yml}"
+      done
+      if [ -z "$rewrite_names" ]; then
+        echo "templates/ holds no template to rewrite an include for" >&2
+        return 1
+      fi
+
+      rewrite_roots="README.md"
+      if [ -d examples ]; then
+        rewrite_roots="README.md examples"
+      fi
+
+      # Word splitting is wanted: the roots are the two fixed words above. So
+      # is the single-quoted $CI_SERVER_FQDN: the published text must carry
+      # the variable itself, which GitLab resolves where the include is used.
+      # shellcheck disable=SC2086,SC2016
+      find $rewrite_roots -type f \( -name '*.md' -o -name '*.yml' \) -exec sed -E -i \
+        -e '/^(<!--|#) github-only:start( -->)?$/,/^(<!--|#) github-only:end( -->)?$/d' \
+        -e 's#remote: "?https://raw\.githubusercontent\.com/[^/ ]+/[^/ ]+/'"$1"'/templates/('"$rewrite_names"')\.yml"?#component: $CI_SERVER_FQDN/'"$CI_PROJECT_PATH"'/\1@'"$2"'#g' \
+        -e 's#([$]CI_SERVER_FQDN)/[A-Za-z0-9_./-]+/(('"$rewrite_names"')@)#\1/'"$CI_PROJECT_PATH"'/\2#g' \
+        -e 's#https://github\.com/'"$UPSTREAM_REPO"'/(blob|tree)/main/examples#'"$CI_SERVER_URL"'/'"$CI_PROJECT_PATH"'/-/\1/'"$2"'/examples#g' \
+        {} +
+    }
 
 # -----------------------------------------------------------------------------
 # Pushes a tag for every upstream release that does not have one here yet.
@@ -67,6 +134,9 @@ sync:
   before_script:
     - apk add --no-cache curl jq git tar
   script:
+    # Defines rewrite_for_catalog. Every entry of a script runs in one shell,
+    # so the function is there when the next entry calls it.
+    - *rewrite_for_catalog
     - |
       set -eu
 
@@ -158,6 +228,9 @@ sync:
           cp -r "/tmp/upstream/$path" "./$path"
           echo "  synced $path"
         done
+
+        rewrite_for_catalog "$upstream_tag" "$version"
+        echo "  rewrote README.md and examples/ for ${CI_PROJECT_PATH}"
 
         git add -A -- $SYNCED_PATHS
         if git diff --cached --quiet; then

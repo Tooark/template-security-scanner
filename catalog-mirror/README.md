@@ -6,7 +6,9 @@ This directory holds the pipeline for a small mirror project that closes that
 gap: it watches releases of
 [`Tooark/template-security-scanner`](https://github.com/Tooark/template-security-scanner),
 copies `templates/` across for every release it has not published yet, and
-publishes each one to the internal catalog.
+publishes each one to the internal catalog. The README and `examples/` go with
+them, [rewritten](#what-the-catalog-page-shows) so that the page of the catalog
+shows the include of the mirror and not the one of GitHub.
 
 GitHub stays the source of truth. Nothing is authored here.
 
@@ -14,10 +16,10 @@ GitHub stays the source of truth. Nothing is authored here.
 
 Two kinds of pipeline run in the mirror, one job each:
 
-| Pipeline              | Started by                                             | Job       | What it does                                                                                                                    |
-| --------------------- | ------------------------------------------------------ | --------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| On the default branch | the weekly schedule, **Run pipeline**, or a push to it | `sync`    | Lists the upstream releases and, oldest first, commits the `templates/` of each one that has no tag here yet and pushes its tag |
-| On a version tag      | `sync`, which pushes one tag per release               | `release` | Publishes that tag to the CI/CD Catalog                                                                                         |
+| Pipeline              | Started by                                             | Job       | What it does                                                                                                             |
+| --------------------- | ------------------------------------------------------ | --------- | ------------------------------------------------------------------------------------------------------------------------ |
+| On the default branch | the weekly schedule, **Run pipeline**, or a push to it | `sync`    | Lists the upstream releases and, oldest first, commits the files of each one that has no tag here yet and pushes its tag |
+| On a version tag      | `sync`, which pushes one tag per release               | `release` | Publishes that tag to the CI/CD Catalog                                                                                  |
 
 Nothing else starts a pipeline: `workflow:rules` leaves out every other
 branch and every tag that is not a bare `MAJOR.MINOR.PATCH`. That is on
@@ -48,6 +50,33 @@ The `release` job runs `glab`, which the `release` keyword uses on GitLab 18.0
 and later. On an older instance, switch its image to
 `registry.gitlab.com/gitlab-org/release-cli`.
 
+## What the catalog page shows
+
+The catalog shows the `README.md` of the mirror, and that file is written for
+GitHub: its includes are remote, and its links go to `github.com`. Someone who
+found the component in your catalog should be able to copy what the page
+shows. So `sync` copies `README.md` and `examples/` with `templates/`, and
+rewrites both before it commits a release:
+
+| In the release on GitHub                                                                                       | In the mirror                                                             |
+| -------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| `remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v<version>/templates/<name>.yml"` | `component: $CI_SERVER_FQDN/<path of the mirror>/<name>@<version>`        |
+| `component: $CI_SERVER_FQDN/tooark/ci-security-scanner/<name>@<version>`                                       | `component: $CI_SERVER_FQDN/<path of the mirror>/<name>@<version>`        |
+| A link to `github.com/Tooark/template-security-scanner/blob/main/examples/...`                                 | A link to `examples/...` in the mirror, at the tag of that version        |
+| The lines between a `github-only:start` and a `github-only:end` comment                                        | Nothing: upstream marks with them what is only true of the remote include |
+
+The path is `$CI_PROJECT_PATH` of the mirror, so the page is right wherever the
+project lives, and the `inputs:` of an include are left as they are: a
+component takes the same ones. Only includes of a template the release carries
+are touched. Everything else in the README still points at GitHub, which is
+where the changelog, the Portuguese README and the issues are.
+
+One remote include is left on purpose, the one pinned to a commit hash under
+_Security notes_: only a remote include can do that.
+
+Upstream tests the rewrite on every change to its README and its examples, in
+the image the `sync` job runs.
+
 ## One-time setup
 
 1. **Create the project** on your GitLab instance, for example
@@ -65,8 +94,8 @@ and later. On an older instance, switch its image to
    git push
    ```
 
-   `templates/`, `README.md`, `LICENSE` and `VERSION` arrive with the first
-   sync — there is no need to copy them by hand.
+   `templates/`, `examples/`, `README.md`, `LICENSE` and `VERSION` arrive with
+   the first sync — there is no need to copy them by hand.
 
 3. **Mark it as a catalog resource**: _Settings > General > Visibility, project
    features, permissions_ and turn on **CI/CD Catalog project** (Owner role).
@@ -122,14 +151,16 @@ Once the first release lands, projects on the instance include it by path:
 
 ```yaml
 include:
-  - component: $CI_SERVER_FQDN/tooark/ci-security-scanner/full-scan@1.5.1
+  - component: $CI_SERVER_FQDN/tooark/ci-security-scanner/full-scan@1.5.2
     inputs:
       image: "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA"
       trivy_severity: "CRITICAL,HIGH"
 ```
 
 `$CI_SERVER_FQDN` resolves to the instance host, so the same snippet works in
-every project without hardcoding the domain.
+every project without hardcoding the domain. The README and the examples the
+mirror publishes carry this include already, with the path of your project in
+place of `tooark/ci-security-scanner`.
 
 The version after `@` can also be partial. GitLab resolves it when the pipeline
 is created, to the newest version matching it among those published in the
@@ -151,9 +182,9 @@ release; there is no `@1.0.0` to pin.
 
 ## Updating the mirror's own pipeline
 
-`sync` replaces `templates/`, `README.md`, `LICENSE` and `VERSION` and nothing
-else. The `.gitlab-ci.yml` of the mirror is local, so a fix to the pipeline in
-this directory does not reach a mirror by itself. When the
+`sync` replaces `templates/`, `examples/`, `README.md`, `LICENSE` and `VERSION`
+and nothing else. The `.gitlab-ci.yml` of the mirror is local, so a fix to the
+pipeline in this directory does not reach a mirror by itself. When the
 [changelog](../CHANGELOG.md) names a change to the catalog mirror, fetch the
 file again and commit it:
 
@@ -168,6 +199,11 @@ git push
 That push starts a `sync` on the default branch, which doubles as the test of
 the new file. Versions already published are not touched, and the variables,
 the token and the schedule stay as they are.
+
+Not touched includes their README. A change to what `sync` writes, such as the
+[rewrite of the includes](#what-the-catalog-page-shows), reaches the page of
+the catalog with the next release upstream publishes, and the versions from
+before it keep the files they were published with.
 
 ## Moving an existing mirror to this repository
 
@@ -211,5 +247,6 @@ becomes catalog version `1.2.3`.
 | `found no release of ... tagged vMAJOR.MINOR.PATCH`              | `UPSTREAM_REPO` names a repository without a published release tagged `vX.Y.Z`; drafts and prereleases do not count                                                                                                                                                                                                      |
 | `API rate limit exceeded`                                        | Set `UPSTREAM_TOKEN` to a GitHub token                                                                                                                                                                                                                                                                                   |
 | A release is out upstream and the catalog never gets it          | No pipeline ran since. Under _Build > Pipeline schedules_, check that the schedule exists, is **active** and has an owner who can still run pipelines; then press its play button. A `sync` log that opens with `started by 'web', not by a schedule` on every run means no scheduled run ever happened                  |
+| The catalog page shows includes of `raw.githubusercontent.com`   | The newest version was published by a `.gitlab-ci.yml` from before the rewrite. [Update the file](#updating-the-mirrors-own-pipeline); the page follows with the next upstream release                                                                                                                                   |
 | No pipeline starts for a branch or a tag                         | Expected for any branch but the default one, and for a tag that is not a bare `MAJOR.MINOR.PATCH`: `workflow:rules` leaves both out                                                                                                                                                                                      |
 | `sync` sits in _waiting for resource_                            | Another `sync` is running; the two share a `resource_group`. It starts when the first one ends                                                                                                                                                                                                                           |

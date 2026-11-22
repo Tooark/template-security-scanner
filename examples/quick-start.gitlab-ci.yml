@@ -15,5 +15,5 @@
 # artifacts for 7 days.
 # =============================================================================
 include:
-  # Always pin a tag.
-  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.1/templates/full-scan.yml"
+  # Always pin a version.
+  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.2/templates/full-scan.yml"

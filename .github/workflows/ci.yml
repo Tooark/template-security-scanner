@@ -63,15 +63,27 @@ jobs:
       - name: Test the release script
         run: bash tests/release.test.sh
 
+      # The catalog mirror rewrites the README and the examples in a pipeline
+      # on somebody else's GitLab, where a mistake shows up on the page of a
+      # catalog. Its function is read out of catalog-mirror/.gitlab-ci.yml and
+      # run on them here: with the tools of this runner, then in the image the
+      # sync job pins by digest, where sed and find are the BusyBox ones.
+      - name: Test the catalog mirror rewrite
+        run: |
+          python3 tests/catalog-mirror.test.py
+          python3 tests/catalog-mirror.test.py --image
+
       - name: ShellCheck
         run: shellcheck -s bash scripts/*.sh tests/*.sh
 
       # The script blocks inside the templates are shell too, and they run in
       # every consuming pipeline. sh, not bash: nothing in them may depend on
-      # the shell a runner happens to pick.
+      # the shell a runner happens to pick. The function the catalog mirror
+      # rewrites the README with is linted with them.
       - name: ShellCheck the job scripts
         run: |
           python3 tests/templates.test.py --dump "$RUNNER_TEMP/job-scripts"
+          python3 tests/catalog-mirror.test.py --dump "$RUNNER_TEMP/job-scripts"
           shellcheck -s sh "$RUNNER_TEMP"/job-scripts/*.sh
 
       # Pinned by digest: a third-party image runs with this job's context, and

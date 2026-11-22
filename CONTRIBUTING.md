@@ -98,6 +98,11 @@ Run all five before opening a PR. CI runs them, lints the script blocks of the
 templates with ShellCheck, runs `actionlint`, and scans this repository with
 the sister GitHub Action.
 
+A change to `README.md`, to `examples/` or to `catalog-mirror/` has a sixth:
+`python3 tests/catalog-mirror.test.py`, which runs the rewrite the catalog
+mirror applies to the first two. CI runs it twice, the second time with
+`--image`, in the Alpine image the mirror itself runs; that one needs docker.
+
 **Install `shellcheck` locally.** It fails on `info`-level findings, and it is
 the easiest of the five to discover only after CI has turned red. To lint the
 shell inside the templates the way CI does:
@@ -168,7 +173,7 @@ the scanner image tag that every template pins, and the report envelope that
 image writes:
 
 ```text
-COMPONENT_VERSION=1.5.1
+COMPONENT_VERSION=1.5.2
 SCANNER_IMAGE=ghcr.io/tooark/security-scanner
 SCANNER_VERSION=1.14
 REPORT_SCHEMA=ark-report-tools
@@ -226,9 +231,20 @@ chore(version): bump the scanner image to 1.10
   other.
 - Every input is documented in the template's `spec:inputs` block, and has a
   row in the README tables. `check-sync.sh` fails when a README misses one.
-- The README is also the page of the CI/CD Catalog: the mirror syncs it
-  together with `templates/`, `LICENSE` and `VERSION`, and nothing else. Links
-  to any other file must be absolute, or they break there.
+- The English README is also the page of the CI/CD Catalog: the mirror syncs
+  it together with `templates/`, `examples/`, `LICENSE` and `VERSION`, and
+  nothing else. Links to any other file must be absolute, or they break there.
+- The mirror rewrites that README and the examples as it copies them: a remote
+  include of the current tag becomes a component of the mirror, and a link to
+  `examples/` on GitHub one to the copy published there. Text that is only
+  true of the remote include goes between two marker comments, each alone on
+  its line, and the mirror leaves it out: `<!-- github-only:start -->` and
+  `<!-- github-only:end -->` in the README, `# github-only:start` and
+  `# github-only:end` in an example. Read what is left as the reader of a
+  catalog will: it has to make sense without the marked lines.
+  `tests/catalog-mirror.test.py` runs the rewrite on both and fails on a
+  marker without its pair, an include that did not follow, or a link to an
+  example the mirror does not have.
 - Every YAML block in the READMEs that includes a template is checked against
   it by `check-examples.py`, exactly like the files in `examples/`. Write
   snippets that parse on their own.

@@ -32,7 +32,7 @@ stages:
   - test
 
 include:
-  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.1/templates/full-scan.yml"
+  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.2/templates/full-scan.yml"
     inputs:
       # --- the job ------------------------------------------------------------
       # Change it to include the template more than once.
@@ -146,20 +146,20 @@ include:
 
   # --- inputs that belong to other templates ----------------------------------
 
-  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.1/templates/repo-scan.yml"
+  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.2/templates/repo-scan.yml"
     inputs:
       # Local path or remote repository URL.
       # E.g. "https://gitlab.example.com/my-group/another-project.git"
       target: "$CI_PROJECT_DIR"
 
-  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.1/templates/dockerfile-lint.yml"
+  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.2/templates/dockerfile-lint.yml"
     inputs:
       # The one Dockerfile to lint.
       dockerfile: "$CI_PROJECT_DIR/Dockerfile"
       # Findings itemized in the job log.
       hadolint_log_max_findings: "20"
 
-  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.1/templates/secret-scan.yml"
+  - remote: "https://raw.githubusercontent.com/Tooark/template-security-scanner/v1.5.2/templates/secret-scan.yml"
     inputs:
       # "true" scans only the working tree and skips the git history.
       no_git: "false"
